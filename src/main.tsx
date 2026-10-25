@@ -5,7 +5,7 @@ import App from './App.tsx'
 import { loadReadingPreferences, resolveEffectiveReadingTheme } from './domain/readingPreferences.ts'
 import type { FileAccess } from './platform/fileAccess.ts'
 import { tauriFileAccess } from './platform/fileAccess.ts'
-import { tauriAppUpdateClient } from './platform/appUpdates.ts'
+import { unsupportedAppUpdateClient } from './platform/unsupportedAppUpdates.ts'
 import { bootstrapReadingTheme } from './platform/readingTheme.ts'
 import { setTheme } from '@tauri-apps/api/app'
 import { openUrl } from '@tauri-apps/plugin-opener'
@@ -32,7 +32,8 @@ const windowFrame = '__TAURI_INTERNALS__' in window
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App
-      appUpdateClient={tauriAppUpdateClient}
+      appUpdateClient={unsupportedAppUpdateClient}
+      supportsAppUpdates={false}
       fileAccess={window.__MDVIEW_E2E_FILE_ACCESS__ ?? tauriFileAccess}
       windowFrame={windowFrame}
     />
