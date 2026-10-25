@@ -10,7 +10,7 @@
       <Component Id="FileAssociationRegistry" Guid="d81a245f-2ed7-4826-9908-41878b8d4b38" Win64="$(var.MdViewWin64)">
         <RegistryValue
           Root="HKLM"
-          Key="Software\Classes\Applications\MDSView.exe"
+          Key="Software\Classes\Applications\mdview.exe"
           Name="MDSViewFileAssociation"
           Type="integer"
           Value="1"
@@ -19,40 +19,40 @@
         <RegistryValue Root="HKLM" Key="Software\Classes\.md" Type="string" Value="MDSView.md" />
         <RegistryValue Root="HKLM" Key="Software\Classes\.markdown" Type="string" Value="MDSView.markdown" />
         <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.md" Type="string" Value="Markdown text document" />
-        <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.md\DefaultIcon" Type="string" Value="&quot;[INSTALLDIR]MDSView.exe&quot;,0" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.md\DefaultIcon" Type="string" Value="&quot;[INSTALLDIR]mdview.exe&quot;,0" />
         <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.md\shell\open" Type="string" Value="Open with MDSView" />
-        <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.md\shell\open\command" Type="string" Value="&quot;[INSTALLDIR]MDSView.exe&quot; &quot;%1&quot;" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.md\shell\open\command" Type="string" Value="&quot;[INSTALLDIR]mdview.exe&quot; &quot;%1&quot;" />
         <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.markdown" Type="string" Value="Markdown text document" />
-        <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.markdown\DefaultIcon" Type="string" Value="&quot;[INSTALLDIR]MDSView.exe&quot;,0" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.markdown\DefaultIcon" Type="string" Value="&quot;[INSTALLDIR]mdview.exe&quot;,0" />
         <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.markdown\shell\open" Type="string" Value="Open with MDSView" />
-        <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.markdown\shell\open\command" Type="string" Value="&quot;[INSTALLDIR]MDSView.exe&quot; &quot;%1&quot;" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\MDSView.markdown\shell\open\command" Type="string" Value="&quot;[INSTALLDIR]mdview.exe&quot; &quot;%1&quot;" />
 
         <RegistryValue
           Root="HKLM"
-          Key="Software\Classes\Applications\MDSView.exe"
+          Key="Software\Classes\Applications\mdview.exe"
           Name="FriendlyAppName"
           Type="string"
           Value="MDSView" />
         <RegistryValue
           Root="HKLM"
-          Key="Software\Classes\Applications\MDSView.exe"
+          Key="Software\Classes\Applications\mdview.exe"
           Name="ApplicationIcon"
           Type="string"
-          Value="[INSTALLDIR]MDSView.exe,0" />
+          Value="[INSTALLDIR]mdview.exe,0" />
         <RegistryValue
           Root="HKLM"
-          Key="Software\Classes\Applications\MDSView.exe\shell\open\command"
+          Key="Software\Classes\Applications\mdview.exe\shell\open\command"
           Type="string"
-          Value="&quot;[INSTALLDIR]MDSView.exe&quot; &quot;%1&quot;" />
+          Value="&quot;[INSTALLDIR]mdview.exe&quot; &quot;%1&quot;" />
         <RegistryValue
           Root="HKLM"
-          Key="Software\Classes\Applications\MDSView.exe\SupportedTypes"
+          Key="Software\Classes\Applications\mdview.exe\SupportedTypes"
           Name=".md"
           Type="string"
           Value="" />
         <RegistryValue
           Root="HKLM"
-          Key="Software\Classes\Applications\MDSView.exe\SupportedTypes"
+          Key="Software\Classes\Applications\mdview.exe\SupportedTypes"
           Name=".markdown"
           Type="string"
           Value="" />

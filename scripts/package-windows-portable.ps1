@@ -30,10 +30,10 @@ if ($Version -notmatch "^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$") {
 
 $releasePath = (Resolve-Path -LiteralPath $ReleaseDir).Path
 $outputPath = Resolve-OrCreateDirectory -Path $OutputDir
-$exePath = Join-Path $releasePath "MDSView.exe"
+$exePath = Join-Path $releasePath "mdview.exe"
 
 if (-not (Test-Path -LiteralPath $exePath)) {
-  throw "MDSView.exe was not found at $exePath. Run npm run desktop:build -- --bundles msi first."
+  throw "mdview.exe was not found at $exePath. Run npm run desktop:build -- --bundles msi first."
 }
 
 $portableName = "MDSView_$Version`_windows_x64_portable"
