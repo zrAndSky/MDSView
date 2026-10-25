@@ -15,6 +15,7 @@ import {
 import { PanelLeftOpen } from 'lucide-react'
 import './App.css'
 import { SplitScrollControl } from './components/workspace/SplitScrollControl'
+import { SplitSwapControl } from './components/workspace/SplitSwapControl'
 import { Toast } from './components/shell/Toast'
 import { AppDialogs } from './components/shell/AppDialogs'
 import { AppToolbar } from './components/shell/AppToolbar'
@@ -64,6 +65,7 @@ import { openExternalLink } from './platform/externalLinks'
 import type { AppUpdateClient } from './platform/appUpdates'
 import { unsupportedAppUpdateClient } from './platform/unsupportedAppUpdates'
 import {
+  matchesShortcut,
   withShortcutTitle,
 } from './platform/keyboardShortcuts'
 import { useFileShortcuts } from './hooks/useFileShortcuts'
@@ -296,6 +298,19 @@ function AppWorkspace({
     onSaveAs: handleSaveFileAs,
     onSaveSuccess: () => showAppToast(t.saved),
   })
+  const { toggleSwapped } = splitLayout
+  useEffect(() => {
+    function handleSwapShortcut(event: KeyboardEvent) {
+      if (event.defaultPrevented || !matchesShortcut(event, { key: 'x', shiftKey: true }, shortcutPlatform)) {
+        return
+      }
+      event.preventDefault()
+      toggleSwapped()
+    }
+
+    window.addEventListener('keydown', handleSwapShortcut)
+    return () => window.removeEventListener('keydown', handleSwapShortcut)
+  }, [shortcutPlatform, toggleSwapped])
   const {
     freezePreview,
     previewContent,
@@ -469,6 +484,7 @@ function AppWorkspace({
   const isOutlineVisible = viewMode === 'preview' && isOutlineOpen
   const workspaceClasses = [
     'workspace',
+    viewMode === 'split' && splitLayout.swapped ? 'split-swapped' : '',
     viewMode === 'preview' && isOutlineOpen ? 'outline-open' : '',
     viewMode === 'preview' && !isOutlineOpen ? 'outline-collapsed' : '',
   ]
@@ -717,12 +733,19 @@ function AppWorkspace({
             t={t}
             showToolbar={viewMode !== 'preview'}
             toolbarEnd={viewMode === 'split' ? (
-              <SplitScrollControl
-                disableLabel={t.disableSplitScrollSync}
-                enableLabel={t.enableSplitScrollSync}
-                enabled={isSplitScrollSyncEnabled}
-                onToggle={handleToggleSplitScrollSync}
-              />
+              <div className="split-toolbar-actions">
+                <SplitSwapControl
+                  label={withShortcutTitle(t.swapPanes, { key: 'x', shiftKey: true }, shortcutPlatform)}
+                  swapped={splitLayout.swapped}
+                  onToggle={splitLayout.toggleSwapped}
+                />
+                <SplitScrollControl
+                  disableLabel={t.disableSplitScrollSync}
+                  enableLabel={t.enableSplitScrollSync}
+                  enabled={isSplitScrollSyncEnabled}
+                  onToggle={handleToggleSplitScrollSync}
+                />
+              </div>
             ) : undefined}
           />
           <ImageImportNotice

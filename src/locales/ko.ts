@@ -64,6 +64,7 @@ export const korean: Translation = {
   dontSave: '저장 안 함',
   cancelAction: '취소',
   resizeSplit: '편집기와 미리보기 너비 조절. 두 번 클릭하면 같은 너비로 분할',
+  swapPanes: '소스와 미리보기 위치 바꾸기',
   moreFormatting: '추가 서식 도구',
   previousFormatting: '이전 서식 도구',
   hideRecentFiles: '최근 파일 숨기기',

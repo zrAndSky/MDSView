@@ -64,6 +64,7 @@ export const japanese: Translation = {
   dontSave: '保存しない',
   cancelAction: 'キャンセル',
   resizeSplit: '編集とプレビューの幅を調整。ダブルクリックで均等に分割',
+  swapPanes: 'ソースとプレビューを入れ替え',
   moreFormatting: 'その他の書式ツール',
   previousFormatting: '前の書式ツール',
   hideRecentFiles: '最近使ったファイルを隠す',

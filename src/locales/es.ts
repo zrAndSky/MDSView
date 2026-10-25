@@ -64,6 +64,7 @@ export const spanish: Translation = {
   dontSave: 'No guardar',
   cancelAction: 'Cancelar',
   resizeSplit: 'Ajustar el ancho del editor y la vista previa; doble clic para repartirlo por igual',
+  swapPanes: 'Intercambiar código y vista previa',
   moreFormatting: 'Más herramientas de formato',
   previousFormatting: 'Herramientas de formato anteriores',
   hideRecentFiles: 'Ocultar archivos recientes',

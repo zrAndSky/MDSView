@@ -3672,3 +3672,32 @@
   background: var(--control-hover);
   color: var(--text-strong);
 }
+
+.split-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (min-width: 861px) {
+  .view-split .workspace.split-swapped {
+    grid-template-columns: minmax(0, 1fr) 8px minmax(0, var(--split-editor-width, 42%));
+  }
+
+  .view-split .workspace.split-swapped .editor-panel {
+    grid-column: 3;
+    grid-row: 1;
+    border-right: 0;
+    border-left: 1px solid var(--border);
+  }
+
+  .view-split .workspace.split-swapped .split-resizer {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .view-split .workspace.split-swapped .preview-panel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
