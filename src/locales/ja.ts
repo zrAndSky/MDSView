@@ -112,6 +112,8 @@ export const japanese: Translation = {
   languageLabel: '表示言語',
   readingSettings: '表示設定',
   readingSettingsSubtitle: '外観と文字の表示を調整して、読みやすくします。',
+  autoSave: '自動保存',
+  autoSaveDescription: '入力が止まってから1.5秒後にファイルを自動保存します。初期設定ではオフです。',
   closeReadingSettings: '表示設定を閉じる',
   themeMode: '外観',
   themeSystem: 'システム',

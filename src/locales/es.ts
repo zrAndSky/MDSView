@@ -112,6 +112,8 @@ export const spanish: Translation = {
   languageLabel: 'Idioma de la interfaz',
   readingSettings: 'Ajustes de lectura',
   readingSettingsSubtitle: 'Ajusta la apariencia y la tipografía para leer con comodidad.',
+  autoSave: 'Guardado automático',
+  autoSaveDescription: 'Guarda el archivo automáticamente 1,5 segundos después de dejar de escribir. Desactivado de forma predeterminada.',
   closeReadingSettings: 'Cerrar ajustes de lectura',
   themeMode: 'Apariencia',
   themeSystem: 'Sistema',

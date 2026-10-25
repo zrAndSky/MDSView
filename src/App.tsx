@@ -44,6 +44,7 @@ import {
 } from './hooks/useOutlineNavigation'
 import { useAppMenu } from './hooks/useAppMenu'
 import { useAppUpdater } from './hooks/useAppUpdater'
+import { useAutoSave, useAutoSavePreference } from './hooks/useAutoSave'
 import { useDocumentController } from './hooks/useDocumentController'
 import { useDocumentSearch } from './hooks/useDocumentSearch'
 import { useImageInsertion } from './hooks/useImageInsertion'
@@ -166,6 +167,16 @@ function AppWorkspace({
     fileOperationFailedMessage: t.fileOperationFailed,
     onCloseMenu: closeMenu,
     onViewModeChange: setViewMode,
+  })
+  const [autoSaveEnabled] = useAutoSavePreference()
+  useAutoSave({
+    enabled: autoSaveEnabled,
+    documentPath: markdownDocument.path,
+    content: markdownDocument.content,
+    isDirty: markdownDocument.isDirty,
+    isSaving,
+    saveBlocked: externalFileState !== null,
+    onSave: handleSaveFile,
   })
   const closeDocxImport = useCallback(() => {
     if (docxImportPhase === 'installing' || docxImportPhase === 'converting') {

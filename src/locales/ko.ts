@@ -112,6 +112,8 @@ export const korean: Translation = {
   languageLabel: '인터페이스 언어',
   readingSettings: '읽기 설정',
   readingSettingsSubtitle: '편하게 읽을 수 있도록 테마와 글꼴을 조절하세요.',
+  autoSave: '자동 저장',
+  autoSaveDescription: '입력을 멈춘 뒤 1.5초 후에 파일을 자동으로 저장합니다. 기본값은 꺼짐입니다.',
   closeReadingSettings: '읽기 설정 닫기',
   themeMode: '테마',
   themeSystem: '시스템',

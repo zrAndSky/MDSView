@@ -1,6 +1,7 @@
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { Monitor, Moon, RotateCcw, Sun, X } from 'lucide-react'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { AutoSaveSetting } from './AutoSaveSetting'
 import {
   READING_CONTENT_WIDTH_RANGE,
   READING_FONT_SIZE_RANGE,
@@ -165,6 +166,8 @@ export function ReadingSettingsDialog({
           <RangeSetting label={t.lineHeight(preferences.lineHeight)} value={preferences.lineHeight} range={READING_LINE_HEIGHT_RANGE} onChange={(lineHeight) => onUpdate({ lineHeight })} />
           <RangeSetting label={t.contentWidth(preferences.contentWidth)} value={preferences.contentWidth} range={READING_CONTENT_WIDTH_RANGE} onChange={(contentWidth) => onUpdate({ contentWidth })} />
         </section>
+
+        <AutoSaveSetting t={t} />
 
         <section className="reading-sample-section" aria-label={t.readingSampleTitle}>
           <h3>{t.readingSampleTitle}</h3>
