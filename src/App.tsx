@@ -20,6 +20,9 @@ import { AppDialogs } from './components/shell/AppDialogs'
 import { AppToolbar } from './components/shell/AppToolbar'
 import { AppLogo } from './components/shell/AppLogo'
 import { DocumentOutline } from './components/workspace/DocumentOutline'
+import { PlaylistPanel } from './components/workspace/PlaylistPanel'
+import { SidePanelTabs } from './components/workspace/SidePanelTabs'
+import { loadSidePanelTab, saveSidePanelTab, type SidePanelTab } from './domain/sidePanelTab'
 import { DocumentSearchBar } from './components/editor/DocumentSearchBar'
 import { ExternalFileBanner } from './components/workspace/ExternalFileBanner'
 import { ImageImportNotice } from './components/editor/ImageImportNotice'
@@ -49,6 +52,7 @@ import { useDocumentController } from './hooks/useDocumentController'
 import { useDocumentSearch } from './hooks/useDocumentSearch'
 import { useImageInsertion } from './hooks/useImageInsertion'
 import { usePreviewController } from './hooks/usePreviewController'
+import { usePlaylists } from './hooks/usePlaylists'
 import { useReadingSession } from './hooks/useReadingSession'
 import { useReadingPreferences } from './hooks/useReadingPreferences'
 import { useTransientToast } from './hooks/useTransientToast'
@@ -178,6 +182,15 @@ function AppWorkspace({
     saveBlocked: externalFileState !== null,
     onSave: handleSaveFile,
   })
+  const [sidePanelTab, setSidePanelTab] = useState<SidePanelTab>(loadSidePanelTab)
+  const playlists = usePlaylists()
+  const handleSidePanelTabChange = useCallback((tab: SidePanelTab) => {
+    setSidePanelTab(tab)
+    saveSidePanelTab(tab)
+  }, [])
+  const handleOpenPlaylistItem = useCallback((path: string) => {
+    void handleOpenRecentFile(path)
+  }, [handleOpenRecentFile])
   const closeDocxImport = useCallback(() => {
     if (docxImportPhase === 'installing' || docxImportPhase === 'converting') {
       void fileAccess.docxImport?.cancel()
@@ -617,21 +630,45 @@ function AppWorkspace({
         />
         {isOutlineVisible ? (
           <aside
-            className="outline-panel"
-            aria-label={t.outlinePanel}
+            className="outline-panel side-panel"
+            aria-label={sidePanelTab === 'outline' ? t.outlinePanel : t.playlistsTab}
             style={{ width: `${outlineWidth}px` }}
           >
-            <DocumentOutline
-              collapsedIds={collapsedOutlineIds}
-              onSetSubtree={setOutlineSubtree}
-              onToggleBranch={toggleOutlineBranch}
-              onSetAllBranches={setAllOutlineBranches}
-              items={outlineItems}
-              activeId={activeOutlineId}
-              maxDepth={outlineDepth}
-              onJump={handleOutlineJump}
-              onMaxDepthChange={setOutlineDepth}
-              onClose={closeOutline}
+            <SidePanelTabs
+              activeTab={sidePanelTab}
+              onTabChange={handleSidePanelTabChange}
+              outline={(
+                <DocumentOutline
+                  collapsedIds={collapsedOutlineIds}
+                  onSetSubtree={setOutlineSubtree}
+                  onToggleBranch={toggleOutlineBranch}
+                  onSetAllBranches={setAllOutlineBranches}
+                  items={outlineItems}
+                  activeId={activeOutlineId}
+                  maxDepth={outlineDepth}
+                  onJump={handleOutlineJump}
+                  onMaxDepthChange={setOutlineDepth}
+                  onClose={closeOutline}
+                  t={t}
+                />
+              )}
+              playlists={(
+                <PlaylistPanel
+                  state={playlists.state}
+                  activePlaylist={playlists.activePlaylist}
+                  currentPath={markdownDocument.path}
+                  currentTitle={markdownDocument.title}
+                  t={t}
+                  onCreate={playlists.create}
+                  onSelect={playlists.select}
+                  onRename={playlists.rename}
+                  onDelete={playlists.remove}
+                  onAddCurrent={playlists.addItem}
+                  onRemoveItem={playlists.removeItem}
+                  onMoveItem={playlists.moveItem}
+                  onOpenItem={handleOpenPlaylistItem}
+                />
+              )}
               t={t}
             />
           </aside>
