@@ -173,7 +173,7 @@ export function ReadingSettingsDialog({
           <h3>{t.readingSampleTitle}</h3>
           <div className="reading-sample" style={{ width: `${preferences.contentWidth / READING_CONTENT_WIDTH_RANGE.max * 100}%` }}>
             <p>{t.readingSampleText}</p>
-            <code>const theme = "MDView"</code>
+            <code>const theme = "MDSView"</code>
             <table><tbody><tr><th>Markdown</th><td>{t.readingSampleCode}</td></tr></tbody></table>
           </div>
         </section>

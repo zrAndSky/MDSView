@@ -126,12 +126,12 @@ export async function buildExportDocx({
     nextOrderedListInstance: 1,
   }
   const children = await convertBlocks(tree.children, context)
-  const documentTitle = title || 'MDView Export'
+  const documentTitle = title || 'MDSView Export'
   const headerTitle = createExportDisplayTitle(documentTitle)
   const document = new Document({
     title: documentTitle,
-    creator: 'MDView',
-    description: 'Exported from MDView',
+    creator: 'MDSView',
+    description: 'Exported from MDSView',
     styles: {
       default: {
         document: {

@@ -30,13 +30,13 @@ if ($Version -notmatch "^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$") {
 
 $releasePath = (Resolve-Path -LiteralPath $ReleaseDir).Path
 $outputPath = Resolve-OrCreateDirectory -Path $OutputDir
-$exePath = Join-Path $releasePath "MDView.exe"
+$exePath = Join-Path $releasePath "MDSView.exe"
 
 if (-not (Test-Path -LiteralPath $exePath)) {
-  throw "MDView.exe was not found at $exePath. Run npm run desktop:build -- --bundles msi first."
+  throw "MDSView.exe was not found at $exePath. Run npm run desktop:build -- --bundles msi first."
 }
 
-$portableName = "MDView_$Version`_windows_x64_portable"
+$portableName = "MDSView_$Version`_windows_x64_portable"
 $stagingPath = Join-Path $outputPath $portableName
 $zipPath = Join-Path $outputPath "${portableName}.zip"
 
@@ -55,7 +55,7 @@ if (Test-Path -LiteralPath $zipPath) {
 
 New-Item -ItemType Directory -Path $stagingPath | Out-Null
 
-Copy-Item -LiteralPath $exePath -Destination (Join-Path $stagingPath "MDView.exe")
+Copy-Item -LiteralPath $exePath -Destination (Join-Path $stagingPath "MDSView.exe")
 Set-Content -LiteralPath (Join-Path $stagingPath "MDView.portable") -Value "MDView portable distribution" -Encoding ASCII
 
 $filePatterns = @("*.dll", "*.pak", "*.bin", "*.dat")
@@ -78,13 +78,13 @@ if (Test-Path -LiteralPath "LICENSE") {
 }
 
 @"
-MDView Windows Portable
+MDSView Windows Portable
 Version: $Version
 
-Run MDView.exe directly after extracting this ZIP archive.
+Run MDSView.exe directly after extracting this ZIP archive.
 
 Notes:
-- This portable package does not install MDView.
+- This portable package does not install MDSView.
 - It does not register .md or .markdown file associations.
 - Updates open GitHub Releases so this package remains portable.
 - WebView2 Runtime is still required on Windows.

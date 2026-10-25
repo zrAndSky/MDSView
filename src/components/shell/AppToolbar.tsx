@@ -95,7 +95,7 @@ export function AppToolbar({
   >
     <div className="brand-block">
       <div className="app-mark" aria-hidden="true"><AppLogo /></div>
-      <div className="brand-text"><h1>MDView</h1><p title={isWelcomeVisible ? t.welcomeBrand : documentPath ?? documentTitle}><span>{isWelcomeVisible ? t.welcomeBrand : documentTitle}</span>{!isWelcomeVisible && saveStateLabel ? <span className={`document-save-badge${hasUnsavedChanges ? ' dirty' : ''}${viewMode !== 'preview' ? ' compact' : ''}`} role="status" aria-label={saveStateLabel} title={saveStateLabel}><span className="save-state-dot" aria-hidden="true" />{viewMode === 'preview' ? saveStateLabel : null}</span> : null}</p></div>
+      <div className="brand-text"><h1>MDSView</h1><p title={isWelcomeVisible ? t.welcomeBrand : documentPath ?? documentTitle}><span>{isWelcomeVisible ? t.welcomeBrand : documentTitle}</span>{!isWelcomeVisible && saveStateLabel ? <span className={`document-save-badge${hasUnsavedChanges ? ' dirty' : ''}${viewMode !== 'preview' ? ' compact' : ''}`} role="status" aria-label={saveStateLabel} title={saveStateLabel}><span className="save-state-dot" aria-hidden="true" />{viewMode === 'preview' ? saveStateLabel : null}</span> : null}</p></div>
     </div>
     <nav className="toolbar" aria-label={t.documentActions} ref={menuBarRef} onKeyDown={onMenuKeyDown}>
       <div className="action-menu">

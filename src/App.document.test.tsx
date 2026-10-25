@@ -212,7 +212,7 @@ describe('App', () => {
     await openAppMenu(user)
     await user.click(screen.getByRole('menuitem', { name: 'About' }))
 
-    const dialog = screen.getByRole('dialog', { name: 'About MDView' })
+    const dialog = screen.getByRole('dialog', { name: 'About MDSView' })
     expect(dialog).toBeInTheDocument()
     expect(screen.getByText(`Version ${appInfo.version}`)).toBeInTheDocument()
     expect(screen.getByText('Sunky')).toBeInTheDocument()
@@ -224,7 +224,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Close about dialog' }))
 
-    expect(screen.queryByRole('dialog', { name: 'About MDView' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'About MDSView' })).not.toBeInTheDocument()
   })
 
   it('opens an App menu with about and language actions', async () => {

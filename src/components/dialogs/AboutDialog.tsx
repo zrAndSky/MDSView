@@ -45,7 +45,7 @@ export function AboutDialog({ open, onClose, t }: AboutDialogProps) {
             <AppLogo />
           </div>
           <div>
-            <h2 id="about-title" aria-label={t.aboutTitle}>MDView</h2>
+            <h2 id="about-title" aria-label={t.aboutTitle}>MDSView</h2>
             <p>{t.aboutSubtitle}</p>
             <span className="about-version">{t.versionValue(appInfo.version)}</span>
           </div>

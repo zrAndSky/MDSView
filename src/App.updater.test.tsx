@@ -42,7 +42,7 @@ describe('App', () => {
     expect(checkForUpdate).toHaveBeenCalledTimes(1)
     const dialog = await screen.findByRole('dialog', { name: 'Software Update' })
     expect(dialog).toBeInTheDocument()
-    expect(screen.getByText('MDView is up to date')).toBeInTheDocument()
+    expect(screen.getByText('MDSView is up to date')).toBeInTheDocument()
     expect(screen.getByText(appInfo.version)).toBeInTheDocument()
     expect(screen.queryByRole('status', { name: 'Notification' })).not.toBeInTheDocument()
 

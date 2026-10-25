@@ -829,7 +829,7 @@ function LocalizedApp(props: AppProps) {
 
 export default function App(props: AppProps) {
   return (
-    <Suspense fallback={<div className="app-language-loading" role="status" aria-label="MDView"><AppLogo /></div>}>
+    <Suspense fallback={<div className="app-language-loading" role="status" aria-label="MDSView"><AppLogo /></div>}>
       <LocalizedApp {...props} />
     </Suspense>
   )

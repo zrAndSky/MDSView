@@ -67,7 +67,7 @@ export async function printHtmlInBrowser(html: string, title: string): Promise<v
 }
 
 function createPrintOverrideStyles(title: string): string {
-  const safeTitle = escapeCssString(title || 'MDView')
+  const safeTitle = escapeCssString(title || 'MDSView')
 
   return `
 @page {

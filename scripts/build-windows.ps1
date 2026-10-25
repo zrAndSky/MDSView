@@ -57,7 +57,7 @@ if ($packageJson.version -ne $tauriConfig.version) {
   throw "Version mismatch: package.json=$($packageJson.version), tauri.conf.json=$($tauriConfig.version)."
 }
 
-Write-Host "MDView Windows packaging" -ForegroundColor Green
+Write-Host "MDSView Windows packaging" -ForegroundColor Green
 Write-Host "Version: $($packageJson.version)"
 
 if (-not $SkipChecks) {

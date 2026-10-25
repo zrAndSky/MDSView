@@ -27,7 +27,7 @@ use tauri::Emitter;
 
 const FILE_ACCESS_POLICY_FILENAME: &str = "approved-markdown-files.json";
 const FILE_ACCESS_DENIED: &str =
-    "File access denied. Open or select the file in MDView before accessing it.";
+    "File access denied. Open or select the file in MDSView before accessing it.";
 const MAX_IMAGE_ASSET_BYTES: usize = 10 * 1024 * 1024;
 const MAX_EXPORT_IMAGE_BYTES: usize = 20 * 1024 * 1024;
 

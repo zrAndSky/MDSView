@@ -30,8 +30,8 @@ const sharedSyntax = {
   localLink: '[Install guide](guide.md#installation)',
   image: '![Alternative text](assets/image.png)',
   imageTitle: '![Alternative text](assets/image.png "Image title")',
-  codeBlock: '```js\nconsole.log("Hello, MDView")\n```',
-  table: '| Name | Status |\n| :--- | ---: |\n| MDView | Ready |',
+  codeBlock: '```js\nconsole.log("Hello, MDSView")\n```',
+  table: '| Name | Status |\n| :--- | ---: |\n| MDSView | Ready |',
   mermaid: '```mermaid\nflowchart TD\n  A[Start] --> B[Finish]\n```',
   color: '`#1769FF`',
   details: '<details>\n<summary>More details</summary>\n\nHidden content\n</details>',
@@ -95,7 +95,7 @@ export const markdownSyntaxReference: Record<'en' | 'zh', MarkdownSyntaxSection[
     },
     {
       id: 'mdview-enhancements',
-      title: 'MDView enhancements',
+      title: 'MDSView enhancements',
       items: [
         { id: 'mermaid', name: 'Mermaid diagram', syntax: sharedSyntax.mermaid, description: 'Render Mermaid source from a mermaid fenced code block.' },
         { id: 'color', name: 'Color preview', syntax: sharedSyntax.color, description: 'Hex colors display a matching swatch in Preview.' },
@@ -146,7 +146,7 @@ export const markdownSyntaxReference: Record<'en' | 'zh', MarkdownSyntaxSection[
       title: '代码与表格',
       items: [
         { id: 'code-block', name: '围栏代码块', syntax: sharedSyntax.codeBlock, description: '在开始标记后注明语言即可启用语法高亮。' },
-        { id: 'table', name: '对齐表格', syntax: '| 名称 | 状态 |\n| :--- | ---: |\n| MDView | 可用 |', description: '在分隔行添加冒号控制列的左对齐、右对齐或居中。' },
+        { id: 'table', name: '对齐表格', syntax: '| 名称 | 状态 |\n| :--- | ---: |\n| MDSView | 可用 |', description: '在分隔行添加冒号控制列的左对齐、右对齐或居中。' },
       ],
     },
     {
@@ -160,7 +160,7 @@ export const markdownSyntaxReference: Record<'en' | 'zh', MarkdownSyntaxSection[
     },
     {
       id: 'mdview-enhancements',
-      title: 'MDView 增强',
+      title: 'MDSView 增强',
       items: [
         { id: 'mermaid', name: 'Mermaid 图表', syntax: '```mermaid\nflowchart TD\n  A[开始] --> B[结束]\n```', description: '使用 mermaid 围栏代码块渲染流程图等图表。' },
         { id: 'color', name: '颜色预览', syntax: sharedSyntax.color, description: '预览模式会在十六进制颜色值旁显示对应色块。' },

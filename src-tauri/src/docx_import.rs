@@ -247,7 +247,7 @@ pub fn install(app: &AppHandle, registry: &DocxImportRegistry) -> Result<Status,
             find_python(app)?
                 .filter(|python| is_supported_version(&python.version))
                 .ok_or_else(|| {
-                    "Python was installed but is not available yet. Restart MDView, then try again."
+                    "Python was installed but is not available yet. Restart MDSView, then try again."
                         .to_string()
                 })?
         }

@@ -262,9 +262,9 @@ describe('MarkdownEditor', () => {
     expect(screen.getByRole('heading', { name: 'Basic formatting' })).toBeInTheDocument()
     expect(screen.queryByText('Relative image')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: 'MDView enhancements' }))
+    await user.click(screen.getByRole('tab', { name: 'MDSView enhancements' }))
 
-    expect(screen.getByRole('tab', { name: 'MDView enhancements' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'MDSView enhancements' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('Mermaid diagram')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Close markdown syntax reference' }))
@@ -289,7 +289,7 @@ describe('MarkdownEditor', () => {
 
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Lists and blocks' }), { key: 'End' })
 
-    expect(screen.getByRole('tab', { name: 'MDView enhancements' })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'MDSView enhancements' })).toHaveFocus()
     expect(screen.getByText('Mermaid diagram')).toBeInTheDocument()
   })
 
@@ -299,7 +299,7 @@ describe('MarkdownEditor', () => {
     render(<MarkdownEditor value="" onChange={vi.fn()} label="Markdown source" t={labels} />)
 
     await user.click(screen.getByRole('button', { name: 'Markdown syntax reference' }))
-    await user.click(screen.getByRole('tab', { name: 'MDView enhancements' }))
+    await user.click(screen.getByRole('tab', { name: 'MDSView enhancements' }))
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText },
@@ -324,7 +324,7 @@ describe('MarkdownEditor', () => {
     expect(screen.getByRole('heading', { name: '基础排版' })).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: '链接与媒体' }))
     expect(screen.getByText('相对路径图片')).toBeInTheDocument()
-    await user.click(screen.getByRole('tab', { name: 'MDView 增强' }))
+    await user.click(screen.getByRole('tab', { name: 'MDSView 增强' }))
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn().mockRejectedValue(new Error('Clipboard unavailable')) },

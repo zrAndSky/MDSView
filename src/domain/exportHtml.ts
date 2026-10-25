@@ -363,7 +363,7 @@ const highlightStyles = `
 `
 
 export function buildExportHtml({ title, lang, contentHtml, mathStyles = '' }: BuildExportHtmlOptions): string {
-  const safeTitle = escapeHtml(title || 'MDView Export')
+  const safeTitle = escapeHtml(title || 'MDSView Export')
 
   return [
     '<!doctype html>',
