@@ -620,9 +620,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init());
 
-    #[cfg(target_os = "windows")]
-    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
-
     builder
         .invoke_handler(tauri::generate_handler![
             take_opened_files,

@@ -32,8 +32,5 @@ sha2 = "0.10"
 reqwest = { version = "=0.12.15", default-features = false, features = ["rustls-tls", "stream"] }
 notify = "8.2"
 
-[target.'cfg(windows)'.dependencies]
-tauri-plugin-updater = "2"
-
 [target.'cfg(any(target_os = "windows", target_os = "macos"))'.dependencies]
 font-kit = "0.14.3"
