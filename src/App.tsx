@@ -11,8 +11,10 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { PanelLeftOpen } from 'lucide-react'
+import { FolderOpen, ListTree } from 'lucide-react'
 import './App.css'
 import { SplitScrollControl } from './components/workspace/SplitScrollControl'
 import { SplitSwapControl } from './components/workspace/SplitSwapControl'
@@ -22,9 +24,8 @@ import { AppToolbar } from './components/shell/AppToolbar'
 import { AppLogo } from './components/shell/AppLogo'
 import { DocumentOutline } from './components/workspace/DocumentOutline'
 import { PlaylistPanel } from './components/workspace/PlaylistPanel'
-import { SidePanelTabs } from './components/workspace/SidePanelTabs'
+import { SidePanelColumn } from './components/workspace/SidePanelColumn'
 import { HistoryDrawer } from './components/history/HistoryDrawer'
-import { loadSidePanelTab, saveSidePanelTab, type SidePanelTab } from './domain/sidePanelTab'
 import { DocumentSearchBar } from './components/editor/DocumentSearchBar'
 import { ExternalFileBanner } from './components/workspace/ExternalFileBanner'
 import { ImageImportNotice } from './components/editor/ImageImportNotice'
@@ -42,16 +43,13 @@ import {
   type AppLanguage,
   type Translation,
 } from './i18n'
-import {
-  MAX_OUTLINE_WIDTH,
-  MIN_OUTLINE_WIDTH,
-  useOutlineNavigation,
-} from './hooks/useOutlineNavigation'
+import { useOutlineNavigation } from './hooks/useOutlineNavigation'
 import { useAppMenu } from './hooks/useAppMenu'
 import { useAppUpdater } from './hooks/useAppUpdater'
 import { useAutoSave, useAutoSavePreference } from './hooks/useAutoSave'
 import { useSaveOnClose } from './hooks/useSaveOnClose'
 import { useGitHistory } from './hooks/useGitHistory'
+import { useSidePanels } from './hooks/useSidePanels'
 import { useDocumentController } from './hooks/useDocumentController'
 import { useDocumentSearch } from './hooks/useDocumentSearch'
 import { useImageInsertion } from './hooks/useImageInsertion'
@@ -76,6 +74,7 @@ import { getLineStartOffsets } from './domain/documentStatistics'
 import { createEditorSelectionStore } from './domain/editorSelectionStore'
 import type { ReadingViewMode } from './domain/readingSessions'
 import { nativeWindowFrame, type AppWindowFrame } from './platform/windowFrame'
+import type { PanelSide } from './domain/sidePanels'
 
 type ViewMode = ReadingViewMode
 
@@ -194,15 +193,91 @@ function AppWorkspace({
     saveBlocked: externalFileState !== null,
     onSave: handleSaveFile,
   })
-  const [sidePanelTab, setSidePanelTab] = useState<SidePanelTab>(loadSidePanelTab)
+  const sidePanels = useSidePanels()
   const playlists = usePlaylists()
-  const handleSidePanelTabChange = useCallback((tab: SidePanelTab) => {
-    setSidePanelTab(tab)
-    saveSidePanelTab(tab)
-  }, [])
   const handleOpenPlaylistItem = useCallback((path: string) => {
     void handleOpenRecentFile(path)
   }, [handleOpenRecentFile])
+  const [panelResize, setPanelResize] = useState<{
+    kind: 'width' | 'stack'
+    side: PanelSide
+    startX: number
+    startY: number
+    startValue: number
+    columnHeight: number
+  } | null>(null)
+
+  useEffect(() => {
+    if (!panelResize) {
+      return
+    }
+    const resize = panelResize
+
+    function handlePointerMove(event: PointerEvent) {
+      if (resize.kind === 'width') {
+        const delta = event.clientX - resize.startX
+        sidePanels.setWidth(resize.side, resize.startValue + (resize.side === 'left' ? delta : -delta))
+      } else if (resize.columnHeight > 0) {
+        const ratio = resize.startValue + (event.clientY - resize.startY) / resize.columnHeight * 100
+        sidePanels.setStack(resize.side, ratio)
+      }
+    }
+
+    function handlePointerUp() {
+      setPanelResize(null)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+  }, [panelResize, sidePanels])
+
+  const beginPanelWidthResize = useCallback((side: PanelSide, event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setPanelResize({
+      kind: 'width',
+      side,
+      startX: event.clientX,
+      startY: 0,
+      startValue: sidePanels.state.widths[side],
+      columnHeight: 0,
+    })
+  }, [sidePanels.state.widths])
+
+  const handlePanelWidthKeyDown = useCallback((side: PanelSide, event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = event.key === 'ArrowLeft' ? -16 : event.key === 'ArrowRight' ? 16 : 0
+    if (!step) {
+      return
+    }
+    event.preventDefault()
+    sidePanels.setWidth(side, sidePanels.state.widths[side] + (side === 'left' ? step : -step))
+  }, [sidePanels])
+
+  const beginPanelStackResize = useCallback((side: PanelSide, event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const column = event.currentTarget.parentElement
+    setPanelResize({
+      kind: 'stack',
+      side,
+      startX: 0,
+      startY: event.clientY,
+      startValue: sidePanels.state.stacks[side],
+      columnHeight: column ? column.getBoundingClientRect().height : 0,
+    })
+  }, [sidePanels.state.stacks])
+
+  const handlePanelStackKeyDown = useCallback((side: PanelSide, event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = event.key === 'ArrowUp' ? -2 : event.key === 'ArrowDown' ? 2 : 0
+    if (!step) {
+      return
+    }
+    event.preventDefault()
+    sidePanels.setStack(side, sidePanels.state.stacks[side] + step)
+  }, [sidePanels])
+
   const closeDocxImport = useCallback(() => {
     if (docxImportPhase === 'installing' || docxImportPhase === 'converting') {
       void fileAccess.docxImport?.cancel()
@@ -409,27 +484,30 @@ function AppWorkspace({
     setOutlineSubtree,
     toggleOutlineBranch,
     setAllOutlineBranches,
-    beginOutlineResize,
     closeOutline,
     handleOutlineJump,
-    handleOutlineResizeKey,
     isOutlineOpen,
     openOutline,
     outlineDepth,
     outlineItems,
-    outlineWidth,
     queueHeadingJump,
-    restoreOutlineLayout,
     setOutlineDepth,
   } = useOutlineNavigation({
     documentSessionId,
     content: markdownDocument.content,
-    isPreview: !isWelcomeVisible && viewMode === 'preview',
+    isPreview: !isWelcomeVisible && viewMode !== 'edit',
     readingFontKey,
     previewZoom,
     previewPanelRef,
     previewRef,
   })
+  const toggleOutlineOpen = useCallback((open: boolean) => {
+    if (open) {
+      openOutline()
+    } else {
+      closeOutline()
+    }
+  }, [closeOutline, openOutline])
   const handleOpenMarkdownLink = useCallback(async (path: string, headingId?: string) => {
     preloadMarkdownPreview()
     if (await openMarkdownLinkFile(path)) {
@@ -439,18 +517,15 @@ function AppWorkspace({
   const handleRestoreReadingSession = useCallback((session: {
     previewZoom: number
     viewMode: ViewMode
-    outlineWidth: number
-    isOutlineOpen: boolean
   }) => {
     restorePreviewZoom(session.previewZoom)
-    restoreOutlineLayout({ width: session.outlineWidth, isOpen: session.isOutlineOpen })
     setViewMode(session.viewMode)
-  }, [restoreOutlineLayout, restorePreviewZoom])
+  }, [restorePreviewZoom])
   useReadingSession({
     documentPath: markdownDocument.path,
     isOutlineOpen,
     onRestore: handleRestoreReadingSession,
-    outlineWidth,
+    outlineWidth: sidePanels.state.widths[sidePanels.state.outlineSide],
     previewPanelRef,
     previewZoom,
     viewMode,
@@ -539,15 +614,79 @@ function AppWorkspace({
     await installUpdate()
   }
 
-  const isOutlineVisible = viewMode === 'preview' && isOutlineOpen
   const workspaceClasses = [
     'workspace',
     viewMode === 'split' && splitLayout.swapped ? 'split-swapped' : '',
-    viewMode === 'preview' && isOutlineOpen ? 'outline-open' : '',
-    viewMode === 'preview' && !isOutlineOpen ? 'outline-collapsed' : '',
   ]
     .filter(Boolean)
     .join(' ')
+
+  const outlineOnLeft = isOutlineOpen && sidePanels.state.outlineSide === 'left'
+  const outlineOnRight = isOutlineOpen && sidePanels.state.outlineSide === 'right'
+  const collectionsOnLeft = sidePanels.state.collectionsOpen && sidePanels.state.collectionsSide === 'left'
+  const collectionsOnRight = sidePanels.state.collectionsOpen && sidePanels.state.collectionsSide === 'right'
+  const leftHasPanels = outlineOnLeft || collectionsOnLeft
+  const rightHasPanels = outlineOnRight || collectionsOnRight
+
+  const outlinePanelNode = (
+    <DocumentOutline
+      collapsedIds={collapsedOutlineIds}
+      onSetSubtree={setOutlineSubtree}
+      onToggleBranch={toggleOutlineBranch}
+      onSetAllBranches={setAllOutlineBranches}
+      items={outlineItems}
+      activeId={activeOutlineId}
+      maxDepth={outlineDepth}
+      onJump={handleOutlineJump}
+      onMaxDepthChange={setOutlineDepth}
+      onClose={closeOutline}
+      t={t}
+    />
+  )
+  const collectionsPanelNode = (
+    <PlaylistPanel
+      state={playlists.state}
+      activePlaylist={playlists.activePlaylist}
+      currentPath={markdownDocument.path}
+      currentTitle={markdownDocument.title}
+      t={t}
+      onCreate={playlists.create}
+      onSelect={playlists.select}
+      onRename={playlists.rename}
+      onDelete={playlists.remove}
+      onAddCurrent={playlists.addItem}
+      onRemoveItem={playlists.removeItem}
+      onMoveItem={playlists.moveItem}
+      onOpenItem={handleOpenPlaylistItem}
+      onClose={() => sidePanels.update({ collectionsOpen: false })}
+    />
+  )
+  const panelColumnLabels = {
+    outlinePanel: t.outlinePanel,
+    collectionsPanel: t.playlistsTab,
+    width: t.resizeSidePanel,
+    stack: t.resizePanelStack,
+  }
+  const renderReopenButtons = (side: PanelSide) => {
+    const buttons = []
+    if (!isOutlineOpen && sidePanels.state.outlineSide === side) {
+      buttons.push(
+        <button key="outline" type="button" className="panel-reopen-button" onClick={openOutline} aria-label={t.expandOutline} title={t.expandOutline}>
+          <ListTree aria-hidden="true" />
+          <span>{t.outlineTab}</span>
+        </button>,
+      )
+    }
+    if (!sidePanels.state.collectionsOpen && sidePanels.state.collectionsSide === side) {
+      buttons.push(
+        <button key="collections" type="button" className="panel-reopen-button" onClick={() => sidePanels.update({ collectionsOpen: true })} aria-label={t.expandCollections} title={t.expandCollections}>
+          <FolderOpen aria-hidden="true" />
+          <span>{t.playlistsTab}</span>
+        </button>,
+      )
+    }
+    return buttons.length > 0 ? <div className={`panel-reopen-stack ${side}`}>{buttons}</div> : null
+  }
 
   const nativeFileTitle = fileAccess.supportsNativeFiles
     ? undefined
@@ -668,7 +807,25 @@ function AppWorkspace({
           onRetry={() => void retryExternalFile()}
           onSaveAs={() => void handleSaveFileAs()}
         /> : null}
-        <section className={workspaceClasses} aria-label={t.workspace} style={{ '--split-editor-width': `${splitLayout.ratio}%` } as CSSProperties}>
+        <div className="workspace-shell">
+          {renderReopenButtons('left')}
+          {leftHasPanels ? (
+            <SidePanelColumn
+              side="left"
+              width={sidePanels.state.widths.left}
+              stack={sidePanels.state.stacks.left}
+              showOutline={outlineOnLeft}
+              showCollections={collectionsOnLeft}
+              outline={outlinePanelNode}
+              collections={collectionsPanelNode}
+              labels={panelColumnLabels}
+              onWidthPointerDown={(event) => beginPanelWidthResize('left', event)}
+              onWidthKeyDown={(event) => handlePanelWidthKeyDown('left', event)}
+              onStackPointerDown={(event) => beginPanelStackResize('left', event)}
+              onStackKeyDown={(event) => handlePanelStackKeyDown('left', event)}
+            />
+          ) : null}
+          <section className={workspaceClasses} aria-label={t.workspace} style={{ '--split-editor-width': `${splitLayout.ratio}%` } as CSSProperties}>
         <DocumentSearchBar
           activeIndex={documentSearch.activeIndex}
           inputRef={documentSearch.inputRef}
@@ -704,75 +861,6 @@ function AppWorkspace({
           query={documentSearch.query}
           replacement={documentSearch.replacement}
         />
-        {isOutlineVisible ? (
-          <aside
-            className="outline-panel side-panel"
-            aria-label={sidePanelTab === 'outline' ? t.outlinePanel : t.playlistsTab}
-            style={{ width: `${outlineWidth}px` }}
-          >
-            <SidePanelTabs
-              activeTab={sidePanelTab}
-              onTabChange={handleSidePanelTabChange}
-              outline={(
-                <DocumentOutline
-                  collapsedIds={collapsedOutlineIds}
-                  onSetSubtree={setOutlineSubtree}
-                  onToggleBranch={toggleOutlineBranch}
-                  onSetAllBranches={setAllOutlineBranches}
-                  items={outlineItems}
-                  activeId={activeOutlineId}
-                  maxDepth={outlineDepth}
-                  onJump={handleOutlineJump}
-                  onMaxDepthChange={setOutlineDepth}
-                  onClose={closeOutline}
-                  t={t}
-                />
-              )}
-              playlists={(
-                <PlaylistPanel
-                  state={playlists.state}
-                  activePlaylist={playlists.activePlaylist}
-                  currentPath={markdownDocument.path}
-                  currentTitle={markdownDocument.title}
-                  t={t}
-                  onCreate={playlists.create}
-                  onSelect={playlists.select}
-                  onRename={playlists.rename}
-                  onDelete={playlists.remove}
-                  onAddCurrent={playlists.addItem}
-                  onRemoveItem={playlists.removeItem}
-                  onMoveItem={playlists.moveItem}
-                  onOpenItem={handleOpenPlaylistItem}
-                />
-              )}
-              t={t}
-            />
-          </aside>
-        ) : null}
-        {isOutlineVisible ? (
-          <div
-            className="outline-resizer"
-            role="separator"
-            aria-label={t.resizeOutline}
-            aria-orientation="vertical"
-            aria-valuemin={MIN_OUTLINE_WIDTH}
-            aria-valuemax={MAX_OUTLINE_WIDTH}
-            aria-valuenow={outlineWidth}
-            tabIndex={0}
-            onPointerDown={(event) => beginOutlineResize(event.clientX)}
-            onKeyDown={handleOutlineResizeKey}
-          />
-        ) : null}
-        {viewMode === 'preview' && !isOutlineOpen ? (
-          <button
-            type="button"
-            className="outline-reopen"
-            onClick={openOutline}
-            aria-label={t.expandOutline}
-          >
-            <PanelLeftOpen aria-hidden="true" />
-          </button>
-        ) : null}
         <section className="editor-panel" aria-label={t.sourceEditorPanel}>
           <MarkdownEditor
             ref={editorRef}
@@ -860,8 +948,26 @@ function AppWorkspace({
               onSearchMatchCountChange={documentSearch.setPreviewMatchCount}
             />
           </Suspense>
+          </section>
         </section>
-      </section>
+          {rightHasPanels ? (
+            <SidePanelColumn
+              side="right"
+              width={sidePanels.state.widths.right}
+              stack={sidePanels.state.stacks.right}
+              showOutline={outlineOnRight}
+              showCollections={collectionsOnRight}
+              outline={outlinePanelNode}
+              collections={collectionsPanelNode}
+              labels={panelColumnLabels}
+              onWidthPointerDown={(event) => beginPanelWidthResize('right', event)}
+              onWidthKeyDown={(event) => handlePanelWidthKeyDown('right', event)}
+              onStackPointerDown={(event) => beginPanelStackResize('right', event)}
+              onStackKeyDown={(event) => handlePanelStackKeyDown('right', event)}
+            />
+          ) : null}
+          {renderReopenButtons('right')}
+        </div>
       </>}
       {toast ? (
         <Toast
@@ -910,6 +1016,14 @@ function AppWorkspace({
         onRefreshDocxImport={() => void checkDocxImport()}
         onSelectDocxPython={() => void selectDocxPython()}
         onOpenPythonDownload={() => void openExternalLink('https://www.python.org/downloads/')}
+        outlineOpen={isOutlineOpen}
+        outlineSide={sidePanels.state.outlineSide}
+        collectionsOpen={sidePanels.state.collectionsOpen}
+        collectionsSide={sidePanels.state.collectionsSide}
+        onOutlineOpenChange={toggleOutlineOpen}
+        onOutlineSideChange={(side) => sidePanels.update({ outlineSide: side })}
+        onCollectionsOpenChange={(open) => sidePanels.update({ collectionsOpen: open })}
+        onCollectionsSideChange={(side) => sidePanels.update({ collectionsSide: side })}
       />
       <UnsavedChangesDialog open={pendingUnsavedTitle !== null} title={pendingUnsavedTitle ?? markdownDocument.title}
         saving={isSaving} canSave={fileAccess.supportsNativeFiles} onChoose={(choice) => void resolveUnsavedChanges(choice)} t={t} />

@@ -9,6 +9,7 @@ import { ReadingSettingsDialog } from '../dialogs/ReadingSettingsDialog'
 import { UpdateDialog } from '../dialogs/UpdateDialog'
 import { DocxImportDialog } from '../dialogs/DocxImportDialog'
 import type { DocxImportStatus } from '../../platform/fileAccess'
+import type { PanelSide } from '../../domain/sidePanels'
 
 export function AppDialogs({
   availableUpdate, distribution, isAboutOpen, isReadingSettingsOpen, pendingDraft,
@@ -17,6 +18,8 @@ export function AppDialogs({
   onInstallUpdate, onOpenPortableDownload, onResetReadingPreferences, onRestoreDraft,
   onUpdateReadingPreferences,
   onCloseDocxImport, onConvertDocx, onInstallDocx, onRefreshDocxImport, onSelectDocxPython, onOpenPythonDownload,
+  outlineOpen, outlineSide, collectionsOpen, collectionsSide,
+  onOutlineOpenChange, onOutlineSideChange, onCollectionsOpenChange, onCollectionsSideChange,
 }: {
   availableUpdate: AppUpdateCandidate | null
   distribution: AppDistribution
@@ -47,11 +50,34 @@ export function AppDialogs({
   onRefreshDocxImport: () => void
   onSelectDocxPython: () => void
   onOpenPythonDownload: () => void
+  outlineOpen?: boolean
+  outlineSide?: PanelSide
+  collectionsOpen?: boolean
+  collectionsSide?: PanelSide
+  onOutlineOpenChange?: (open: boolean) => void
+  onOutlineSideChange?: (side: PanelSide) => void
+  onCollectionsOpenChange?: (open: boolean) => void
+  onCollectionsSideChange?: (side: PanelSide) => void
 }) {
   return <>
     <DraftRecoveryDialog draft={pendingDraft} onDiscard={onDiscardDraft} onRestore={onRestoreDraft} t={t} />
     <AboutDialog open={isAboutOpen} onClose={onCloseAbout} t={t} />
-    <ReadingSettingsDialog open={isReadingSettingsOpen} preferences={readingPreferences} onClose={onCloseReadingSettings} onReset={onResetReadingPreferences} onUpdate={onUpdateReadingPreferences} t={t} />
+    <ReadingSettingsDialog
+      open={isReadingSettingsOpen}
+      preferences={readingPreferences}
+      onClose={onCloseReadingSettings}
+      onReset={onResetReadingPreferences}
+      onUpdate={onUpdateReadingPreferences}
+      t={t}
+      outlineOpen={outlineOpen}
+      outlineSide={outlineSide}
+      collectionsOpen={collectionsOpen}
+      collectionsSide={collectionsSide}
+      onOutlineOpenChange={onOutlineOpenChange}
+      onOutlineSideChange={onOutlineSideChange}
+      onCollectionsOpenChange={onCollectionsOpenChange}
+      onCollectionsSideChange={onCollectionsSideChange}
+    />
     <UpdateDialog distribution={distribution} errorMessage={updateErrorMessage} onCheckAgain={onCheckUpdates} onClose={onDismissUpdate} onInstall={onInstallUpdate} onOpenPortableDownload={onOpenPortableDownload} phase={updatePhase} progress={updateProgress} t={t} update={availableUpdate} />
     <DocxImportDialog open={isDocxImportOpen} phase={docxImportPhase} status={docxImportStatus} t={t} onClose={onCloseDocxImport} onConvert={onConvertDocx} onInstall={onInstallDocx} onRefresh={onRefreshDocxImport} onSelectPython={onSelectDocxPython} onOpenPythonDownload={onOpenPythonDownload} />
   </>

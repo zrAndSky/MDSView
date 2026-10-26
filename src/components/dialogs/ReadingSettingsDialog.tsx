@@ -10,6 +10,7 @@ import {
   type ReadingThemeMode,
 } from '../../domain/readingPreferences'
 import type { Translation } from '../../i18n'
+import type { PanelSide } from '../../domain/sidePanels'
 import { systemFontAccess } from '../../platform/systemFonts'
 
 type ReadingSettingsDialogProps = {
@@ -19,6 +20,14 @@ type ReadingSettingsDialogProps = {
   onReset: () => void
   onUpdate: (changes: Partial<ReadingPreferences>) => void
   t: Translation
+  outlineOpen?: boolean
+  outlineSide?: PanelSide
+  collectionsOpen?: boolean
+  collectionsSide?: PanelSide
+  onOutlineOpenChange?: (open: boolean) => void
+  onOutlineSideChange?: (side: PanelSide) => void
+  onCollectionsOpenChange?: (open: boolean) => void
+  onCollectionsSideChange?: (side: PanelSide) => void
 }
 
 type FontListState = 'idle' | 'loading' | 'ready' | 'error'
@@ -30,6 +39,14 @@ export function ReadingSettingsDialog({
   onReset,
   onUpdate,
   t,
+  outlineOpen = true,
+  outlineSide = 'left',
+  collectionsOpen = false,
+  collectionsSide = 'left',
+  onOutlineOpenChange,
+  onOutlineSideChange,
+  onCollectionsOpenChange,
+  onCollectionsSideChange,
 }: ReadingSettingsDialogProps) {
   const dialogRef = useDialogFocus(open, onClose)
   const [isFontPickerOpen, setIsFontPickerOpen] = useState(false)
@@ -169,6 +186,32 @@ export function ReadingSettingsDialog({
 
         <AutoSaveSetting t={t} />
 
+        {onOutlineOpenChange && onOutlineSideChange && onCollectionsOpenChange && onCollectionsSideChange ? (
+          <section className="reading-settings-section" aria-labelledby="side-panels-label">
+            <h3 id="side-panels-label">{t.sidePanels}</h3>
+            <div className="side-panel-settings">
+              <PanelSetting
+                label={t.outlineTab}
+                side={outlineSide}
+                open={outlineOpen}
+                sideLabels={{ left: t.sideLeft, right: t.sideRight }}
+                openLabel={t.panelDefaultOpen}
+                onSideChange={onOutlineSideChange}
+                onOpenChange={onOutlineOpenChange}
+              />
+              <PanelSetting
+                label={t.playlistsTab}
+                side={collectionsSide}
+                open={collectionsOpen}
+                sideLabels={{ left: t.sideLeft, right: t.sideRight }}
+                openLabel={t.panelDefaultOpen}
+                onSideChange={onCollectionsSideChange}
+                onOpenChange={onCollectionsOpenChange}
+              />
+            </div>
+          </section>
+        ) : null}
+
         <section className="reading-sample-section" aria-label={t.readingSampleTitle}>
           <h3>{t.readingSampleTitle}</h3>
           <div className="reading-sample" style={{ width: `${preferences.contentWidth / READING_CONTENT_WIDTH_RANGE.max * 100}%` }}>
@@ -184,6 +227,38 @@ export function ReadingSettingsDialog({
           </button>
         </footer>
       </section>
+    </div>
+  )
+}
+
+function PanelSetting({
+  label,
+  side,
+  open,
+  sideLabels,
+  openLabel,
+  onSideChange,
+  onOpenChange,
+}: {
+  label: string
+  side: PanelSide
+  open: boolean
+  sideLabels: { left: string; right: string }
+  openLabel: string
+  onSideChange: (side: PanelSide) => void
+  onOpenChange: (open: boolean) => void
+}) {
+  return (
+    <div className="side-panel-setting">
+      <span className="side-panel-setting-label">{label}</span>
+      <div className="side-panel-side-options" role="group" aria-label={label}>
+        <button type="button" className={side === 'left' ? 'active' : ''} aria-pressed={side === 'left'} onClick={() => onSideChange('left')}>{sideLabels.left}</button>
+        <button type="button" className={side === 'right' ? 'active' : ''} aria-pressed={side === 'right'} onClick={() => onSideChange('right')}>{sideLabels.right}</button>
+      </div>
+      <label className="side-panel-open">
+        <input type="checkbox" checked={open} onChange={(event) => onOpenChange(event.currentTarget.checked)} />
+        <span>{openLabel}</span>
+      </label>
     </div>
   )
 }

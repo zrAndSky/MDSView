@@ -8,6 +8,7 @@ import * as markdownOutline from './domain/markdownOutline'
 import { DOCUMENT_DRAFT_STORAGE_KEY } from './domain/documentDraft'
 import { RECENT_FILES_STORAGE_KEY, type RecentFile } from './domain/recentFiles'
 import { OUTLINE_PREFERENCES_STORAGE_KEY } from './domain/outlinePreferences'
+import { SIDE_PANEL_STORAGE_KEY } from './domain/sidePanels'
 import type { FileAccess, OpenedMarkdownFile } from './platform/fileAccess'
 
 
@@ -23,7 +24,7 @@ describe('App', () => {
     setNavigatorPlatform('Win32')
   })
 
-  it('shows a clickable outline in preview mode only', async () => {
+  it('shows a clickable outline in every view mode', async () => {
     const user = userEvent.setup()
     const scrollIntoView = vi.fn()
     window.HTMLElement.prototype.scrollIntoView = scrollIntoView
@@ -73,11 +74,11 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Edit markdown source' }))
 
-    expect(screen.queryByRole('navigation', { name: 'Document outline' })).not.toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Document outline' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Split preview and source' }))
 
-    expect(screen.queryByRole('navigation', { name: 'Document outline' })).not.toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Document outline' })).toBeInTheDocument()
   })
 
   it('zooms the preview with Ctrl + mouse wheel', () => {
@@ -169,7 +170,7 @@ describe('App', () => {
     }
   })
 
-  it('does not update hidden preview or parse the outline while editing', async () => {
+  it('keeps the outline in sync while editing without showing the preview', async () => {
     const user = userEvent.setup()
     const extractOutline = vi.spyOn(markdownOutline, 'extractMarkdownOutline')
     renderApp({ fileAccess: createFileAccess() })
@@ -184,12 +185,12 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { name: 'Untitled' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Edit only' })).not.toBeInTheDocument()
-    expect(extractOutline).not.toHaveBeenCalled()
+    expect(extractOutline).toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Jump to Edit only' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Preview markdown' }))
 
     expect(screen.getByRole('heading', { name: 'Edit only' })).toBeInTheDocument()
-    expect(extractOutline).toHaveBeenCalledTimes(1)
     extractOutline.mockRestore()
   })
 
@@ -256,14 +257,14 @@ describe('App', () => {
     expect(getStoredOutlinePreferences()).toMatchObject({ isOpen: true })
   })
 
-  it('resizes the outline with the preview separator', async () => {
+  it('resizes the side panel with its separator', async () => {
     renderApp({
       fileAccess: createFileAccess({
         startupFile: file('/tmp/outline.md', '# Project Plan\n\n## Scope'),
       }),
     })
 
-    const separator = await screen.findByRole('separator', { name: 'Resize document outline' })
+    const separator = await screen.findByRole('separator', { name: 'Resize side panel' })
     expect(separator).toHaveAttribute('aria-valuenow', '260')
 
     fireEvent.pointerDown(separator, { clientX: 260 })
@@ -274,13 +275,18 @@ describe('App', () => {
       expect(separator).toHaveAttribute('aria-valuenow', '340')
       expect(screen.getByLabelText('Outline panel')).toHaveStyle({ width: '340px' })
     })
-    expect(getStoredOutlinePreferences()).toMatchObject({ width: 340 })
+    const stored = JSON.parse(window.localStorage.getItem(SIDE_PANEL_STORAGE_KEY) ?? '{}')
+    expect(stored.widths.left).toBe(340)
   })
 
   it('restores saved outline preferences on startup', async () => {
     window.localStorage.setItem(
       OUTLINE_PREFERENCES_STORAGE_KEY,
       JSON.stringify({ width: 360, isOpen: false }),
+    )
+    window.localStorage.setItem(
+      SIDE_PANEL_STORAGE_KEY,
+      JSON.stringify({ version: 1, widths: { left: 360, right: 260 } }),
     )
 
     renderApp({

@@ -1,4 +1,5 @@
 import { useMemo, useState, type DragEvent } from 'react'
+import { PanelLeftClose } from 'lucide-react'
 import type { Playlist, PlaylistItem, PlaylistsState } from '../../domain/playlists'
 import { normalizeReadingSessionPath, loadReadingSession } from '../../domain/readingSessions'
 import type { Translation } from '../../i18n'
@@ -17,6 +18,7 @@ type PlaylistPanelProps = {
   onRemoveItem: (playlistId: string, path: string) => void
   onMoveItem: (playlistId: string, fromIndex: number, toIndex: number) => void
   onOpenItem: (path: string) => void
+  onClose?: () => void
 }
 
 export function PlaylistPanel({
@@ -33,6 +35,7 @@ export function PlaylistPanel({
   onRemoveItem,
   onMoveItem,
   onOpenItem,
+  onClose,
 }: PlaylistPanelProps) {
   const [isRenaming, setIsRenaming] = useState(false)
   const [draftName, setDraftName] = useState('')
@@ -86,6 +89,14 @@ export function PlaylistPanel({
 
   return (
     <section className="playlist-panel" aria-label={t.playlistsTab}>
+      <header className="panel-header">
+        <h2>{t.playlistsTab}</h2>
+        {onClose ? (
+          <button type="button" className="panel-close" onClick={onClose} aria-label={t.collapseCollections} title={t.collapseCollections}>
+            <PanelLeftClose aria-hidden="true" />
+          </button>
+        ) : null}
+      </header>
       <button
         type="button"
         className="playlist-action playlist-new"
