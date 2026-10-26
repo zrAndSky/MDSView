@@ -71,6 +71,7 @@ import {
 } from './platform/keyboardShortcuts'
 import { useFileShortcuts } from './hooks/useFileShortcuts'
 import { getLineStartOffsets } from './domain/documentStatistics'
+import { measureEditorLinePositions } from './domain/editorLinePositions'
 import { createEditorSelectionStore } from './domain/editorSelectionStore'
 import type { ReadingViewMode } from './domain/readingSessions'
 import { nativeWindowFrame, type AppWindowFrame } from './platform/windowFrame'
@@ -628,6 +629,44 @@ function AppWorkspace({
   const leftHasPanels = outlineOnLeft || collectionsOnLeft
   const rightHasPanels = outlineOnRight || collectionsOnRight
 
+  const outlineLineById = useMemo(() => {
+    const map = new Map<string, number>()
+    const lines = markdownDocument.content.split('\n')
+    const headings = lines.flatMap((line, index) => {
+      const match = /^#{1,6}\s+(.*)$/.exec(line.trim())
+      return match ? [{ line: index, text: match[1].trim() }] : []
+    })
+    let cursor = 0
+    for (const item of outlineItems) {
+      for (let index = cursor; index < headings.length; index += 1) {
+        if (headings[index].text === item.text) {
+          map.set(item.id, headings[index].line)
+          cursor = index + 1
+          break
+        }
+      }
+    }
+    return map
+  }, [markdownDocument.content, outlineItems])
+
+  const handleOutlineJumpForMode = useCallback((headingId: string) => {
+    if (viewMode !== 'edit') {
+      handleOutlineJump(headingId)
+      return
+    }
+    const line = outlineLineById.get(headingId)
+    const editor = editorRef.current?.getScrollElement()
+    if (line === undefined || !editor) {
+      handleOutlineJump(headingId)
+      return
+    }
+    const tops = measureEditorLinePositions(editor)
+    editor.scrollTop = tops[line] ?? 0
+    editor.focus()
+    const offset = getLineStartOffsets(markdownDocument.content)[line] ?? 0
+    editor.setSelectionRange(offset, offset)
+  }, [handleOutlineJump, markdownDocument.content, outlineLineById, viewMode])
+
   const outlinePanelNode = (
     <DocumentOutline
       collapsedIds={collapsedOutlineIds}
@@ -637,7 +676,7 @@ function AppWorkspace({
       items={outlineItems}
       activeId={activeOutlineId}
       maxDepth={outlineDepth}
-      onJump={handleOutlineJump}
+      onJump={handleOutlineJumpForMode}
       onMaxDepthChange={setOutlineDepth}
       onClose={closeOutline}
       t={t}
