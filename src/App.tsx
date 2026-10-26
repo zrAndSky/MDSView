@@ -23,6 +23,7 @@ import { AppLogo } from './components/shell/AppLogo'
 import { DocumentOutline } from './components/workspace/DocumentOutline'
 import { PlaylistPanel } from './components/workspace/PlaylistPanel'
 import { SidePanelTabs } from './components/workspace/SidePanelTabs'
+import { HistoryDrawer } from './components/history/HistoryDrawer'
 import { loadSidePanelTab, saveSidePanelTab, type SidePanelTab } from './domain/sidePanelTab'
 import { DocumentSearchBar } from './components/editor/DocumentSearchBar'
 import { ExternalFileBanner } from './components/workspace/ExternalFileBanner'
@@ -50,6 +51,7 @@ import { useAppMenu } from './hooks/useAppMenu'
 import { useAppUpdater } from './hooks/useAppUpdater'
 import { useAutoSave, useAutoSavePreference } from './hooks/useAutoSave'
 import { useSaveOnClose } from './hooks/useSaveOnClose'
+import { useGitHistory } from './hooks/useGitHistory'
 import { useDocumentController } from './hooks/useDocumentController'
 import { useDocumentSearch } from './hooks/useDocumentSearch'
 import { useImageInsertion } from './hooks/useImageInsertion'
@@ -306,6 +308,54 @@ function AppWorkspace({
     onSaveAs: handleSaveFileAs,
     onSaveSuccess: () => showAppToast(t.saved),
   })
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const skipNextHistorySnapshotRef = useRef(false)
+  const lastSavedRef = useRef<{ path: string | null; revision: string | null }>({ path: null, revision: null })
+  const history = useGitHistory({
+    path: markdownDocument.path,
+    isOpen: isHistoryOpen,
+    prepareRestore: async () => {
+      if (!markdownDocument.isDirty) {
+        return true
+      }
+      skipNextHistorySnapshotRef.current = true
+      const saved = await handleSaveFile()
+      if (!saved) {
+        skipNextHistorySnapshotRef.current = false
+      }
+      return saved
+    },
+    onRestored: () => {
+      skipNextHistorySnapshotRef.current = true
+      const currentPath = markdownDocument.path
+      if (currentPath) {
+        void handleOpenRecentFile(currentPath)
+      }
+    },
+  })
+  const { snapshotAfterSave } = history
+  useEffect(() => {
+    const path = markdownDocument.path
+    const revision = markdownDocument.savedRevision ?? null
+    const last = lastSavedRef.current
+    if (last.path !== path) {
+      lastSavedRef.current = { path, revision }
+      return
+    }
+    if (revision === last.revision) {
+      return
+    }
+    lastSavedRef.current = { path, revision }
+    if (!path || !revision) {
+      return
+    }
+    if (skipNextHistorySnapshotRef.current) {
+      skipNextHistorySnapshotRef.current = false
+      return
+    }
+    void snapshotAfterSave()
+  }, [markdownDocument.path, markdownDocument.savedRevision, snapshotAfterSave])
+
   const { toggleSwapped } = splitLayout
   useEffect(() => {
     function handleSwapShortcut(event: KeyboardEvent) {
@@ -572,6 +622,8 @@ function AppWorkspace({
         onOpen={() => void handleOpenFileWithPreviewPreload()}
         onOpenRecent={(path) => void handleOpenRecentFileWithPreviewPreload(path)}
         onOpenReadingSettings={handleOpenReadingSettings}
+        isHistoryOpen={isHistoryOpen}
+        onToggleHistory={() => setIsHistoryOpen((open) => !open)}
         onFind={documentSearch.open}
         isFindOpen={documentSearch.isOpen}
         findTitle={withShortcutTitle(t.find, { key: 'f' }, shortcutPlatform)}
@@ -863,6 +915,13 @@ function AppWorkspace({
         saving={isSaving} canSave={fileAccess.supportsNativeFiles} onChoose={(choice) => void resolveUnsavedChanges(choice)} t={t} />
       <ExportWarningDialog open={isWordWarningOpen} onClose={dismissWordWarning}
         onContinue={() => void confirmWordExport()} onHtml={() => void exportHtmlInstead()} t={t} />
+      <HistoryDrawer
+        isOpen={isHistoryOpen}
+        path={markdownDocument.path}
+        t={t}
+        history={history}
+        onClose={() => setIsHistoryOpen(false)}
+      />
     </main>
   )
 }

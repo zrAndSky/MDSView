@@ -1,4 +1,4 @@
-import { BookOpen, Check, ChevronDown, Download, Eye, FileInput, FilePlus2, FolderOpen, FolderSearch, EyeOff, X, PencilLine, Save, Search, Settings, SlidersHorizontal, SplitSquareHorizontal } from 'lucide-react'
+import { BookOpen, Check, ChevronDown, Download, Eye, FileInput, FilePlus2, FolderOpen, FolderSearch, EyeOff, X, PencilLine, Save, Search, Settings, SlidersHorizontal, SplitSquareHorizontal, History } from 'lucide-react'
 import type { KeyboardEvent, MouseEvent, RefObject } from 'react'
 import type { RecentFile } from '../../domain/recentFiles'
 import type { AppMenuId } from '../../hooks/useAppMenu'
@@ -20,6 +20,7 @@ export function AppToolbar({
   onAbout, onCheckUpdates, onClearRecent, onExportDocx, onExportHtml, onExportPdf, onImportDocx,
   onLanguage, onNew, onOpen, onOpenRecent, onOpenReadingSettings, onReveal,
   onSave, onSaveAs, onToggleMenu, onViewMode, onMenuKeyDown, onFind, findTitle, isFindOpen,
+  isHistoryOpen = false, onToggleHistory,
 }: {
   isExporting?: boolean
   saveStateLabel?: string
@@ -68,6 +69,8 @@ export function AppToolbar({
   onViewMode: (mode: ViewMode) => void
   onMenuKeyDown?: (event: KeyboardEvent<HTMLElement>) => void
   onFind?: () => void
+  isHistoryOpen?: boolean
+  onToggleHistory?: () => void
   findTitle?: string
   isFindOpen?: boolean
 }) {
@@ -150,6 +153,7 @@ export function AppToolbar({
         </div> : null}
       </div>
     </nav>
+    {!isWelcomeVisible && onToggleHistory ? <button type="button" className={`history-toggle${isHistoryOpen ? ' active' : ''}`} onClick={onToggleHistory} disabled={!documentPath} aria-pressed={isHistoryOpen} aria-label={t.historyTitle} title={t.historyTitle}><History aria-hidden="true" /><span>{t.historyShort}</span></button> : null}
     {!isWelcomeVisible ? <div className="view-controls" role="group" aria-label={t.viewMode} data-window-interactive="true">
       <button type="button" className={viewMode === 'preview' ? 'active' : ''} onClick={() => onViewMode('preview')} aria-pressed={viewMode === 'preview'} aria-label={t.previewLabel} title={t.previewLabel}><Eye aria-hidden="true" /><span>{t.preview}</span></button>
       <button type="button" className={viewMode === 'edit' ? 'active' : ''} onClick={() => onViewMode('edit')} aria-pressed={viewMode === 'edit'} aria-label={t.editLabel} title={t.editLabel}><PencilLine aria-hidden="true" /><span>{t.edit}</span></button>

@@ -501,11 +501,12 @@ fn working_file_differs(
     }
     let snapshot_hash = String::from_utf8_lossy(&snapshot_hash.stdout).trim().to_string();
 
+    let file_text = file.to_string_lossy().to_string();
     let work_hash = git_output(root, &git_args![
         "hash-object",
         &format!("--path={relative}"),
         "--",
-        &file.to_string_lossy(),
+        &file_text,
     ])?;
     if !work_hash.status.success() {
         return Ok(true);
