@@ -62,9 +62,9 @@ describe('PlaylistPanel', () => {
   it('creates a playlist with the next default name', () => {
     const props = renderPanel()
 
-    fireEvent.click(screen.getByRole('button', { name: '+ 新建歌单' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ 新建文档集' }))
 
-    expect(props.onCreate).toHaveBeenCalledWith('歌单 2')
+    expect(props.onCreate).toHaveBeenCalledWith('文档集 2')
   })
 
   it('shows the empty hint when there are no playlists', () => {
@@ -76,7 +76,7 @@ describe('PlaylistPanel', () => {
   it('adds the current file to the active playlist', () => {
     const props = renderPanel()
 
-    fireEvent.click(screen.getByRole('button', { name: '加入当前文件' }))
+    fireEvent.click(screen.getByRole('button', { name: '加入当前文档' }))
 
     expect(props.onAddCurrent).toHaveBeenCalledWith('p1', expect.objectContaining({
       path: 'D:\\novel\\new.md',
@@ -87,7 +87,7 @@ describe('PlaylistPanel', () => {
   it('disables adding when the current file is already listed', () => {
     renderPanel({ currentPath: 'D:\\novel\\a.md', currentTitle: 'A' })
 
-    expect(screen.getByRole('button', { name: '已在歌单中' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '已在文档集中' })).toBeDisabled()
   })
 
   it('renames a playlist inline', () => {
@@ -114,7 +114,7 @@ describe('PlaylistPanel', () => {
   it('removes an item', () => {
     const props = renderPanel()
 
-    fireEvent.click(screen.getByRole('button', { name: '从歌单移除: B' }))
+    fireEvent.click(screen.getByRole('button', { name: '从文档集移除: B' }))
 
     expect(props.onRemoveItem).toHaveBeenCalledWith('p1', 'D:\\novel\\b.md')
   })

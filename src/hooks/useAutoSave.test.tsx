@@ -124,27 +124,27 @@ describe('useAutoSave', () => {
 
 describe('useAutoSavePreference', () => {
   beforeEach(() => {
-    setAutoSaveEnabled(false)
+    setAutoSaveEnabled(true)
     window.localStorage.clear()
   })
 
-  it('is off by default', () => {
+  it('is on by default', () => {
     const { result } = renderHook(() => useAutoSavePreference())
 
-    expect(result.current[0]).toBe(false)
-    expect(loadAutoSaveEnabled()).toBe(false)
+    expect(result.current[0]).toBe(true)
+    expect(loadAutoSaveEnabled()).toBe(true)
   })
 
   it('persists changes and notifies subscribers', () => {
     const { result } = renderHook(() => useAutoSavePreference())
 
-    act(() => result.current[1](true))
-
-    expect(result.current[0]).toBe(true)
-    expect(window.localStorage.getItem(AUTO_SAVE_STORAGE_KEY)).toBe('true')
-
     act(() => result.current[1](false))
+
     expect(result.current[0]).toBe(false)
     expect(window.localStorage.getItem(AUTO_SAVE_STORAGE_KEY)).toBe('false')
+
+    act(() => result.current[1](true))
+    expect(result.current[0]).toBe(true)
+    expect(window.localStorage.getItem(AUTO_SAVE_STORAGE_KEY)).toBe('true')
   })
 })

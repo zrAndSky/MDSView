@@ -6,9 +6,9 @@ let enabled = loadAutoSaveEnabled()
 
 export function loadAutoSaveEnabled(storage: Storage | null = getLocalStorage()): boolean {
   try {
-    return storage?.getItem(AUTO_SAVE_STORAGE_KEY) === 'true'
+    return storage?.getItem(AUTO_SAVE_STORAGE_KEY) !== 'false'
   } catch {
-    return false
+    return true
   }
 }
 

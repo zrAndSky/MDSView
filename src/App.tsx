@@ -49,6 +49,7 @@ import {
 import { useAppMenu } from './hooks/useAppMenu'
 import { useAppUpdater } from './hooks/useAppUpdater'
 import { useAutoSave, useAutoSavePreference } from './hooks/useAutoSave'
+import { useSaveOnClose } from './hooks/useSaveOnClose'
 import { useDocumentController } from './hooks/useDocumentController'
 import { useDocumentSearch } from './hooks/useDocumentSearch'
 import { useImageInsertion } from './hooks/useImageInsertion'
@@ -181,6 +182,13 @@ function AppWorkspace({
     content: markdownDocument.content,
     isDirty: markdownDocument.isDirty,
     isSaving,
+    saveBlocked: externalFileState !== null,
+    onSave: handleSaveFile,
+  })
+  useSaveOnClose({
+    enabled: autoSaveEnabled,
+    documentPath: markdownDocument.path,
+    isDirty: markdownDocument.isDirty,
     saveBlocked: externalFileState !== null,
     onSave: handleSaveFile,
   })
