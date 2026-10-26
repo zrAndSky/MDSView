@@ -2,6 +2,7 @@ mod distribution;
 mod docx_import;
 mod file_watcher;
 mod fs_utils;
+mod git_history;
 mod image_utils;
 mod startup;
 mod system_fonts;
@@ -645,7 +646,14 @@ pub fn run() {
             write_image_asset,
             reveal_file_in_folder,
             list_system_font_families,
-            get_app_distribution
+            get_app_distribution,
+            git_history::git_repo_root,
+            git_history::git_history_list,
+            git_history::git_history_diff,
+            git_history::git_snapshot,
+            git_history::git_restore,
+            git_history::git_history_size,
+            git_history::git_history_clean
         ])
         .setup(move |app| {
             let policy = FileAccessPolicy::load(app.handle());
