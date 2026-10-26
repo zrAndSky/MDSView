@@ -51,6 +51,11 @@ export function useGitHistory({
 
   const refresh = useCallback(async () => {
     if (!path) {
+      requestRef.current += 1
+      setIsLoading(false)
+      setError(null)
+      setSelectedSha(null)
+      setDiff('')
       setRepoRoot(null)
       setEntries([])
       setLatestSha(null)
