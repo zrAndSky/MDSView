@@ -59,12 +59,62 @@ describe('PlaylistPanel', () => {
     expect(props.onOpenItem).toHaveBeenCalledWith('D:\\novel\\a.md')
   })
 
-  it('creates a playlist with the next default name', () => {
+  it('asks for a name and adds the current document by default', () => {
     const props = renderPanel()
 
     fireEvent.click(screen.getByRole('button', { name: t.newPlaylist }))
+    const dialog = screen.getByRole('dialog')
+    const input = within(dialog).getByRole('textbox', { name: t.playlistNameLabel })
+    expect(input).toHaveValue('文档集 2')
+    expect(within(dialog).getByRole('checkbox')).toBeChecked()
 
-    expect(props.onCreate).toHaveBeenCalledWith('文档集 2')
+    fireEvent.click(within(dialog).getByRole('button', { name: t.createAction }))
+
+    expect(props.onCreate).toHaveBeenCalledWith('文档集 2', expect.objectContaining({
+      path: 'D:\\novel\\new.md',
+      title: 'new.md',
+    }))
+  })
+
+  it('can skip adding the current document', () => {
+    const props = renderPanel()
+
+    fireEvent.click(screen.getByRole('button', { name: t.newPlaylist }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('checkbox'))
+    fireEvent.change(within(dialog).getByRole('textbox', { name: t.playlistNameLabel }), { target: { value: '番外合集' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: t.createAction }))
+
+    expect(props.onCreate).toHaveBeenCalledWith('番外合集', undefined)
+  })
+
+  it('hides the add-current option when no document is open', () => {
+    const props = renderPanel({ currentPath: null, currentTitle: '' })
+
+    fireEvent.click(screen.getByRole('button', { name: t.newPlaylist }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).queryByRole('checkbox')).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: t.createAction }))
+
+    expect(props.onCreate).toHaveBeenCalledWith('文档集 2', undefined)
+  })
+
+  it('cancels creation with Escape and keeps the default name disabled when blank', () => {
+    const props = renderPanel()
+
+    fireEvent.click(screen.getByRole('button', { name: t.newPlaylist }))
+    let dialog = screen.getByRole('dialog')
+    const input = within(dialog).getByRole('textbox', { name: t.playlistNameLabel })
+    fireEvent.change(input, { target: { value: '   ' } })
+    expect(within(dialog).getByRole('button', { name: t.createAction })).toBeDisabled()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(props.onCreate).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: t.newPlaylist }))
+    dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('textbox', { name: t.playlistNameLabel })).toHaveValue('文档集 2')
   })
 
   it('shows the empty hint when there are no playlists', () => {

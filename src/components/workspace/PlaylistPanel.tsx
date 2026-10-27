@@ -3,6 +3,7 @@ import { MoreHorizontal, PanelLeftClose, Plus } from 'lucide-react'
 import type { Playlist, PlaylistItem, PlaylistsState } from '../../domain/playlists'
 import { normalizeReadingSessionPath, loadReadingSession } from '../../domain/readingSessions'
 import type { Translation } from '../../i18n'
+import { CreatePlaylistDialog } from '../dialogs/CreatePlaylistDialog'
 
 type PlaylistPanelProps = {
   state: PlaylistsState
@@ -10,7 +11,7 @@ type PlaylistPanelProps = {
   currentPath: string | null
   currentTitle: string
   t: Translation
-  onCreate: (name: string) => void
+  onCreate: (name: string, item?: PlaylistItem) => void
   onSelect: (id: string) => void
   onRename: (id: string, name: string) => void
   onDelete: (id: string) => void
@@ -41,6 +42,7 @@ export function PlaylistPanel({
   const [draftName, setDraftName] = useState('')
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [overIndex, setOverIndex] = useState<number | null>(null)
@@ -113,7 +115,11 @@ export function PlaylistPanel({
           <button
             type="button"
             className="panel-close"
-            onClick={() => onCreate(t.playlistDefaultName(state.playlists.length + 1))}
+            onClick={() => {
+              setIsRenaming(false)
+              setIsMenuOpen(false)
+              setIsCreating(true)
+            }}
             aria-label={t.newPlaylist}
             title={t.newPlaylist}
           >
@@ -305,6 +311,21 @@ export function PlaylistPanel({
           ) : null}
         </>
       )}
+
+      {isCreating ? (
+        <CreatePlaylistDialog
+          defaultName={t.playlistDefaultName(state.playlists.length + 1)}
+          currentTitle={currentPath ? currentTitle : null}
+          t={t}
+          onCancel={() => setIsCreating(false)}
+          onCreate={(name, addCurrent) => {
+            setIsCreating(false)
+            onCreate(name, addCurrent && currentPath
+              ? { path: currentPath, title: currentTitle, addedAt: new Date().toISOString() }
+              : undefined)
+          }}
+        />
+      ) : null}
     </section>
   )
 }

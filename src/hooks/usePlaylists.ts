@@ -23,8 +23,14 @@ export function usePlaylists() {
     savePlaylists(state)
   }, [state])
 
-  const create = useCallback((name: string) => {
-    setState((current) => createPlaylist(current, name))
+  const create = useCallback((name: string, item?: PlaylistItem) => {
+    setState((current) => {
+      const next = createPlaylist(current, name)
+      if (!item || next === current || !next.activePlaylistId) {
+        return next
+      }
+      return addPlaylistItem(next, next.activePlaylistId, item)
+    })
   }, [])
   const rename = useCallback((id: string, name: string) => {
     setState((current) => renamePlaylist(current, id, name))
