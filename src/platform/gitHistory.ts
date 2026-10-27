@@ -33,10 +33,16 @@ export type GitCleanResult = {
   gcOk: boolean
 }
 
+export type GitHistoryDiff = {
+  diff: string
+  oldText: string
+  newText: string
+}
+
 export type GitHistoryAccess = {
   repoRoot: (path: string) => Promise<string | null>
   list: (path: string, limit?: number) => Promise<GitHistoryResponse>
-  diff: (path: string, sha: string, mode: 'previous' | 'current') => Promise<string>
+  diff: (path: string, sha: string, mode: 'previous' | 'current') => Promise<GitHistoryDiff>
   snapshot: (path: string, force?: boolean) => Promise<GitSnapshotResult>
   restore: (path: string, sha: string) => Promise<void>
   size: (path: string) => Promise<GitHistorySize>
@@ -46,7 +52,7 @@ export type GitHistoryAccess = {
 export const tauriGitHistoryAccess: GitHistoryAccess = {
   repoRoot: (path) => invoke<string | null>('git_repo_root', { path }),
   list: (path, limit = 100) => invoke<GitHistoryResponse>('git_history_list', { path, limit }),
-  diff: (path, sha, mode) => invoke<string>('git_history_diff', { path, sha, mode }),
+  diff: (path, sha, mode) => invoke<GitHistoryDiff>('git_history_diff', { path, sha, mode }),
   snapshot: (path, force = false) => invoke<GitSnapshotResult>('git_snapshot', { path, force }),
   restore: (path, sha) => invoke<void>('git_restore', { path, sha }),
   size: (path) => invoke<GitHistorySize>('git_history_size', { path }),

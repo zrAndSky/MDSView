@@ -60,6 +60,14 @@ pub struct GitCleanResult {
     pub gc_ok: bool,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitHistoryDiff {
+    pub diff: String,
+    pub old_text: String,
+    pub new_text: String,
+}
+
 struct CommitIdent {
     author_name: String,
     author_email: String,
@@ -85,7 +93,7 @@ pub async fn git_history_list(path: String, limit: Option<u32>) -> Result<GitHis
 }
 
 #[tauri::command]
-pub async fn git_history_diff(path: String, sha: String, mode: String) -> Result<String, String> {
+pub async fn git_history_diff(path: String, sha: String, mode: String) -> Result<GitHistoryDiff, String> {
     run_blocking(move || history_diff(&path, &sha, &mode)).await
 }
 
@@ -534,7 +542,30 @@ fn working_file_differs(
     Ok(work_hash != snapshot_hash)
 }
 
-fn history_diff(path: &str, sha: &str, mode: &str) -> Result<String, String> {
+fn truncate_utf8(text: &mut String, limit: usize) {
+    if text.len() <= limit {
+        return;
+    }
+    let mut end = limit;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    text.truncate(end);
+}
+
+fn read_blob(root: &Path, rev: &str, relative: &str) -> String {
+    let spec = format!("{rev}:{relative}");
+    match git_output(root, &git_args!["show", &spec]) {
+        Ok(output) if output.status.success() => {
+            let mut text = String::from_utf8_lossy(&output.stdout).replace("\r\n", "\n");
+            truncate_utf8(&mut text, MAX_DIFF_BYTES);
+            text
+        }
+        _ => String::new(),
+    }
+}
+
+fn history_diff(path: &str, sha: &str, mode: &str) -> Result<GitHistoryDiff, String> {
     if !valid_sha(sha) {
         return Err("无效的快照编号".to_string());
     }
@@ -545,6 +576,27 @@ fn history_diff(path: &str, sha: &str, mode: &str) -> Result<String, String> {
         return Err("找不到该快照".to_string());
     }
 
+    let (old_text, new_text) = match mode {
+        "current" => {
+            let old_text = read_blob(&root, sha, &relative);
+            let new_text = fs::read_to_string(&file)
+                .map(|text| text.replace("\r\n", "\n"))
+                .unwrap_or_default();
+            (old_text, new_text)
+        }
+        _ => {
+            let parent = git_output(&root, &git_args!["rev-parse", "--verify", &format!("{sha}^")])
+                .ok()
+                .filter(|output| output.status.success())
+                .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string());
+            let old_text = parent
+                .as_deref()
+                .map(|commit| read_blob(&root, commit, &relative))
+                .unwrap_or_default();
+            (old_text, read_blob(&root, sha, &relative))
+        }
+    };
+
     let args = match mode {
         "current" => git_args!["diff", "--no-ext-diff", "--unified=3", sha, "--", &relative],
         _ => git_args!["show", "--no-ext-diff", "--format=", "--unified=3", sha, "--", &relative],
@@ -554,16 +606,12 @@ fn history_diff(path: &str, sha: &str, mode: &str) -> Result<String, String> {
         return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
     }
 
-    let mut text = String::from_utf8_lossy(&output.stdout).to_string();
-    if text.len() > MAX_DIFF_BYTES {
-        let mut end = MAX_DIFF_BYTES;
-        while end > 0 && !text.is_char_boundary(end) {
-            end -= 1;
-        }
-        text.truncate(end);
-        text.push_str("\n… diff 太长，已截断");
+    let mut diff = String::from_utf8_lossy(&output.stdout).to_string();
+    if diff.len() > MAX_DIFF_BYTES {
+        truncate_utf8(&mut diff, MAX_DIFF_BYTES);
+        diff.push_str("\n… diff 太长，已截断");
     }
-    Ok(text)
+    Ok(GitHistoryDiff { diff, old_text, new_text })
 }
 
 fn restore_file(path: &str, sha: &str) -> Result<(), String> {

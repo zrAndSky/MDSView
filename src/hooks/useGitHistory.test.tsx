@@ -15,7 +15,7 @@ function createAccess(overrides: Partial<GitHistoryAccess> = {}): GitHistoryAcce
       latestSha: SHA_A,
       workingDirty: true,
     })),
-    diff: vi.fn(async () => '@@ -1 +1 @@\n-old\n+new'),
+    diff: vi.fn(async () => ({ diff: '@@ -1 +1 @@\n-old\n+new', oldText: 'old', newText: 'new' })),
     snapshot: vi.fn(async () => ({ status: 'snapshot' as const, sha: SHA_B, lines: 3 })),
     restore: vi.fn(async () => undefined),
     size: vi.fn(async () => ({ snapshots: 3, bytes: 2048 })),
@@ -68,7 +68,7 @@ describe('useGitHistory', () => {
 
     expect(result.current.selectedSha).toBe(SHA_A)
     expect(result.current.diffMode).toBe('current')
-    expect(result.current.diff).toContain('+new')
+    expect(result.current.diff?.diff).toContain('+new')
     expect(access.diff).toHaveBeenCalledWith('D:\\repo\\a.md', SHA_A, 'current')
   })
 

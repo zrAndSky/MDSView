@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import {
-  classifyDiffLine,
   fileBaseName,
   formatHistoryBytes,
+  formatHistoryClock,
   formatHistoryTime,
 } from '../../domain/historyFormat'
+import { HistoryDiffView } from './HistoryDiffView'
 import type { GitHistoryController } from '../../hooks/useGitHistory'
 import type { Translation } from '../../i18n'
 import type { GitCleanResult, GitHistoryEntry } from '../../platform/gitHistory'
@@ -34,7 +35,8 @@ export function HistoryDrawer({ isOpen, path, t, history, onClose }: HistoryDraw
 
   const entries = history.entries
   const sizeLabel = history.size ? formatHistoryBytes(history.size.bytes) : formatHistoryBytes(0)
-  const diffLines = history.diff ? history.diff.split('\n') : []
+  const selectedEntry = entries.find((entry) => entry.sha === history.selectedSha)
+  const selectedTime = formatHistoryClock(selectedEntry?.time ?? 0)
 
   function selectEntry(entry: GitHistoryEntry) {
     setConfirmRestore(false)
@@ -264,12 +266,10 @@ export function HistoryDrawer({ isOpen, path, t, history, onClose }: HistoryDraw
                       {confirmRestore ? t.historyRestoreConfirm : t.historyRestore}
                     </button>
                   </div>
-                  {diffLines.length > 0 ? (
-                    <pre className="history-diff-body">
-                      {diffLines.map((line, index) => (
-                        <span key={index} className={`diff-${classifyDiffLine(line)}`}>{line}{'\n'}</span>
-                      ))}
-                    </pre>
+                  {history.isDiffLoading ? (
+                    <p className="history-hint">{t.historyLoading}</p>
+                  ) : history.diff ? (
+                    <HistoryDiffView diff={history.diff} time={selectedTime} mode={history.diffMode} t={t} />
                   ) : (
                     <p className="history-hint">{t.historyNoDiff}</p>
                   )}

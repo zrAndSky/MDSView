@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   tauriGitHistoryAccess,
   type GitHistoryAccess,
+  type GitHistoryDiff,
   type GitHistoryEntry,
   type GitHistorySize,
   type GitSnapshotResult,
@@ -41,21 +42,25 @@ export function useGitHistory({
   const [workingDirty, setWorkingDirty] = useState(false)
   const [size, setSize] = useState<GitHistorySize | null>(null)
   const [selectedSha, setSelectedSha] = useState<string | null>(null)
-  const [diff, setDiff] = useState('')
+  const [diff, setDiff] = useState<GitHistoryDiff | null>(null)
   const [diffMode, setDiffMode] = useState<DiffMode>('previous')
   const [isLoading, setIsLoading] = useState(false)
+  const [isDiffLoading, setIsDiffLoading] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<GitHistoryResult>(null)
   const requestRef = useRef(0)
+  const diffRequestRef = useRef(0)
 
   const refresh = useCallback(async () => {
     if (!path) {
       requestRef.current += 1
       setIsLoading(false)
+      setIsDiffLoading(false)
+      diffRequestRef.current += 1
       setError(null)
       setSelectedSha(null)
-      setDiff('')
+      setDiff(null)
       setRepoRoot(null)
       setEntries([])
       setLatestSha(null)
@@ -119,14 +124,26 @@ export function useGitHistory({
     if (!path) {
       return
     }
+    const request = diffRequestRef.current + 1
+    diffRequestRef.current = request
     setSelectedSha(sha)
     setDiffMode(mode)
-    setDiff('')
+    setDiff(null)
     setError(null)
+    setIsDiffLoading(true)
     try {
-      setDiff(await access.diff(path, sha, mode))
+      const loaded = await access.diff(path, sha, mode)
+      if (diffRequestRef.current === request) {
+        setDiff(loaded)
+      }
     } catch (caught) {
-      setError(errorMessage(caught))
+      if (diffRequestRef.current === request) {
+        setError(errorMessage(caught))
+      }
+    } finally {
+      if (diffRequestRef.current === request) {
+        setIsDiffLoading(false)
+      }
     }
   }, [access, path])
 
@@ -216,6 +233,7 @@ export function useGitHistory({
     diff,
     diffMode,
     isLoading,
+    isDiffLoading,
     isBusy,
     error,
     result,
