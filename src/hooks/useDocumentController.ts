@@ -39,6 +39,7 @@ type UseDocumentControllerOptions = {
   externalFileConflictMessage: string
   externalFileMissingMessage: string
   externalFileSaveBlockedMessage: string
+  fileUpToDateMessage: string
   onCloseMenu: () => void
   onViewModeChange: (mode: DocumentViewMode) => void
 }
@@ -54,6 +55,7 @@ export function useDocumentController({
   externalFileConflictMessage,
   externalFileMissingMessage,
   externalFileSaveBlockedMessage,
+  fileUpToDateMessage,
   onCloseMenu,
   onViewModeChange,
 }: UseDocumentControllerOptions) {
@@ -187,7 +189,7 @@ export function useDocumentController({
     }
   }, [canDiscardUnsavedChanges, fileAccess, loadFile])
 
-  const checkCurrentFile = useCallback(async () => {
+  const checkCurrentFile = useCallback(async (manual = false) => {
     const current = documentRef.current
     if (!fileAccess.supportsNativeFiles || !fileAccess.checkMarkdownFile || !current.path || !current.savedRevision) {
       return
@@ -214,16 +216,21 @@ export function useDocumentController({
           setStatusMessage(externalFileUpdatedMessage)
         }
       } else {
+        if (manual) {
+          setStatusMessage(fileUpToDateMessage)
+        }
         setExternalFileState((state) => {
           if (state?.kind !== 'missing') return state
-          setStatusMessage(latest.isDirty ? 'unsaved' : 'saved')
+          if (!manual) {
+            setStatusMessage(latest.isDirty ? 'unsaved' : 'saved')
+          }
           return null
         })
       }
     } catch {
       // Temporary filesystem failures should not interrupt reading or editing.
     }
-  }, [clearCurrentDraft, externalFileConflictMessage, externalFileMissingMessage, externalFileUpdatedMessage, fileAccess])
+  }, [clearCurrentDraft, externalFileConflictMessage, externalFileMissingMessage, externalFileUpdatedMessage, fileAccess, fileUpToDateMessage])
 
   useExternalFileMonitor({
     enabled: isStartupResolved && fileAccess.supportsNativeFiles,
@@ -562,6 +569,7 @@ export function useDocumentController({
     recentFiles,
     restorePendingDraft,
     retryExternalFile: checkCurrentFile,
+    refreshFromDisk: () => checkCurrentFile(true),
     setStatusMessage,
     statusMessage,
     transformDocumentContent,

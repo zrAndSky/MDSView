@@ -1,4 +1,4 @@
-import { BookOpen, Check, ChevronDown, Download, Eye, FileInput, FilePlus2, FolderOpen, FolderSearch, EyeOff, X, PencilLine, Save, Search, Settings, SlidersHorizontal, SplitSquareHorizontal, History } from 'lucide-react'
+import { BookOpen, Check, ChevronDown, Download, Eye, FileInput, FilePlus2, FolderOpen, FolderSearch, EyeOff, X, PencilLine, RefreshCw, Save, Search, Settings, SlidersHorizontal, SplitSquareHorizontal, History } from 'lucide-react'
 import type { KeyboardEvent, MouseEvent, RefObject } from 'react'
 import type { RecentFile } from '../../domain/recentFiles'
 import type { AppMenuId } from '../../hooks/useAppMenu'
@@ -20,7 +20,7 @@ export function AppToolbar({
   onAbout, onCheckUpdates, onClearRecent, onExportDocx, onExportHtml, onExportPdf, onImportDocx,
   onLanguage, onNew, onOpen, onOpenRecent, onOpenReadingSettings, onReveal,
   onSave, onSaveAs, onToggleMenu, onViewMode, onMenuKeyDown, onFind, findTitle, isFindOpen,
-  isHistoryOpen = false, onToggleHistory,
+  isHistoryOpen = false, onToggleHistory, onRefresh,
 }: {
   isExporting?: boolean
   saveStateLabel?: string
@@ -71,6 +71,7 @@ export function AppToolbar({
   onFind?: () => void
   isHistoryOpen?: boolean
   onToggleHistory?: () => void
+  onRefresh?: () => void
   findTitle?: string
   isFindOpen?: boolean
 }) {
@@ -153,6 +154,7 @@ export function AppToolbar({
         </div> : null}
       </div>
     </nav>
+    {!isWelcomeVisible && onRefresh ? <button type="button" className="history-toggle" onClick={onRefresh} disabled={!documentPath} aria-label={t.refreshFile} title={t.refreshFile}><RefreshCw aria-hidden="true" /><span>{t.refreshFileShort}</span></button> : null}
     {!isWelcomeVisible && onToggleHistory ? <button type="button" className={`history-toggle${isHistoryOpen ? ' active' : ''}`} onClick={onToggleHistory} disabled={!documentPath} aria-pressed={isHistoryOpen} aria-label={t.historyTitle} title={t.historyTitle}><History aria-hidden="true" /><span>{t.historyShort}</span></button> : null}
     {!isWelcomeVisible ? <div className="view-controls" role="group" aria-label={t.viewMode} data-window-interactive="true">
       <button type="button" className={viewMode === 'preview' ? 'active' : ''} onClick={() => onViewMode('preview')} aria-pressed={viewMode === 'preview'} aria-label={t.previewLabel} title={t.previewLabel}><Eye aria-hidden="true" /><span>{t.preview}</span></button>

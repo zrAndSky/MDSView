@@ -23,13 +23,16 @@ export function usePlaylists() {
     savePlaylists(state)
   }, [state])
 
-  const create = useCallback((name: string, item?: PlaylistItem) => {
+  const create = useCallback((name: string, items: PlaylistItem[] = []) => {
     setState((current) => {
       const next = createPlaylist(current, name)
-      if (!item || next === current || !next.activePlaylistId) {
+      if (next === current || !next.activePlaylistId || items.length === 0) {
         return next
       }
-      return addPlaylistItem(next, next.activePlaylistId, item)
+      return items.reduce(
+        (state, item) => addPlaylistItem(state, next.activePlaylistId!, item),
+        next,
+      )
     })
   }, [])
   const rename = useCallback((id: string, name: string) => {
@@ -43,6 +46,15 @@ export function usePlaylists() {
   }, [])
   const addItem = useCallback((playlistId: string, item: PlaylistItem) => {
     setState((current) => addPlaylistItem(current, playlistId, item))
+  }, [])
+  const addItems = useCallback((playlistId: string, items: PlaylistItem[]) => {
+    setState((current) => items.reduce(
+      (state, item) => addPlaylistItem(state, playlistId, item),
+      current,
+    ))
+  }, [])
+  const reload = useCallback(() => {
+    setState(loadPlaylists())
   }, [])
   const removeItem = useCallback((playlistId: string, path: string) => {
     setState((current) => removePlaylistItem(current, playlistId, path))
@@ -59,6 +71,8 @@ export function usePlaylists() {
     remove,
     select,
     addItem,
+    addItems,
+    reload,
     removeItem,
     moveItem,
   }

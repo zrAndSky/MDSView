@@ -225,6 +225,33 @@ async fn open_markdown_file_dialog(
 }
 
 #[tauri::command]
+async fn pick_markdown_files(app: AppHandle) -> Result<Vec<String>, String> {
+    let selected = app
+        .dialog()
+        .file()
+        .add_filter("Markdown", &["md", "markdown", "mdown", "mkdn"])
+        .blocking_pick_files();
+    let Some(entries) = selected else {
+        return Ok(Vec::new());
+    };
+
+    let mut paths: Vec<String> = Vec::new();
+    for entry in entries {
+        let Ok(path) = entry.into_path() else {
+            continue;
+        };
+        if ensure_markdown_path(&path).is_err() {
+            continue;
+        }
+        let text = path.to_string_lossy().to_string();
+        if !paths.contains(&text) {
+            paths.push(text);
+        }
+    }
+    Ok(paths)
+}
+
+#[tauri::command]
 async fn open_markdown_file_at_path(
     app: AppHandle,
     policy: State<'_, FileAccessPolicy>,
@@ -625,6 +652,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             take_opened_files,
             open_markdown_file_dialog,
+            pick_markdown_files,
             open_markdown_file_at_path,
             read_markdown_file,
             save_markdown_file,

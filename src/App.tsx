@@ -24,6 +24,7 @@ import { AppToolbar } from './components/shell/AppToolbar'
 import { AppLogo } from './components/shell/AppLogo'
 import { DocumentOutline } from './components/workspace/DocumentOutline'
 import { PlaylistPanel } from './components/workspace/PlaylistPanel'
+import { playlistItemFromPath } from './domain/playlists'
 import { SidePanelColumn } from './components/workspace/SidePanelColumn'
 import { HistoryDrawer } from './components/history/HistoryDrawer'
 import { DocumentSearchBar } from './components/editor/DocumentSearchBar'
@@ -55,6 +56,7 @@ import { useDocumentSearch } from './hooks/useDocumentSearch'
 import { useImageInsertion } from './hooks/useImageInsertion'
 import { usePreviewController } from './hooks/usePreviewController'
 import { usePlaylists } from './hooks/usePlaylists'
+import { useCollectionsFileDrop } from './hooks/useCollectionsFileDrop'
 import { useReadingSession } from './hooks/useReadingSession'
 import { useReadingPreferences } from './hooks/useReadingPreferences'
 import { useTransientToast } from './hooks/useTransientToast'
@@ -159,6 +161,7 @@ function AppWorkspace({
     recentFiles,
     restorePendingDraft,
     retryExternalFile,
+    refreshFromDisk,
     discardPendingDraft,
     documentSessionId,
     externalFileState,
@@ -174,6 +177,7 @@ function AppWorkspace({
     externalFileSaveBlockedMessage: t.externalFileSaveBlocked,
     recentFileOpenFailedMessage: t.recentFileOpenFailed,
     fileOperationFailedMessage: t.fileOperationFailed,
+    fileUpToDateMessage: t.fileUpToDate,
     onCloseMenu: closeMenu,
     onViewModeChange: setViewMode,
   })
@@ -196,6 +200,32 @@ function AppWorkspace({
   })
   const sidePanels = useSidePanels()
   const playlists = usePlaylists()
+  const [isCollectionsDropTarget, setIsCollectionsDropTarget] = useState(false)
+  const addPlaylistItems = useCallback((paths: string[]) => {
+    if (paths.length === 0) {
+      return
+    }
+    const items = paths.map((path) => playlistItemFromPath(path))
+    if (playlists.state.playlists.length === 0) {
+      playlists.create(t.playlistDefaultName(1), items)
+      return
+    }
+    if (playlists.state.activePlaylistId) {
+      playlists.addItems(playlists.state.activePlaylistId, items)
+    }
+  }, [playlists, t])
+  const handleAddDocuments = useCallback(async () => {
+    const pick = fileAccess.pickMarkdownFiles
+    if (!pick) {
+      return
+    }
+    addPlaylistItems(await pick())
+  }, [addPlaylistItems, fileAccess])
+  useCollectionsFileDrop({
+    enabled: sidePanels.state.collectionsOpen,
+    onDropFiles: addPlaylistItems,
+    onHoverChange: setIsCollectionsDropTarget,
+  })
   const handleOpenPlaylistItem = useCallback((path: string) => {
     void handleOpenRecentFile(path)
   }, [handleOpenRecentFile])
@@ -383,6 +413,7 @@ function AppWorkspace({
     onSave: handleSaveFile,
     onSaveAs: handleSaveFileAs,
     onSaveSuccess: () => showAppToast(t.saved),
+    onRefresh: () => void refreshFromDisk(),
   })
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const skipNextHistorySnapshotRef = useRef(false)
@@ -697,6 +728,9 @@ function AppWorkspace({
       onRemoveItem={playlists.removeItem}
       onMoveItem={playlists.moveItem}
       onOpenItem={handleOpenPlaylistItem}
+      onAddDocuments={() => void handleAddDocuments()}
+      onReload={playlists.reload}
+      isDropTarget={isCollectionsDropTarget}
       onClose={() => sidePanels.update({ collectionsOpen: false })}
     />
   )
@@ -802,6 +836,7 @@ function AppWorkspace({
         onOpenReadingSettings={handleOpenReadingSettings}
         isHistoryOpen={isHistoryOpen}
         onToggleHistory={() => setIsHistoryOpen((open) => !open)}
+        onRefresh={() => void refreshFromDisk()}
         onFind={documentSearch.open}
         isFindOpen={documentSearch.isOpen}
         findTitle={withShortcutTitle(t.find, { key: 'f' }, shortcutPlatform)}

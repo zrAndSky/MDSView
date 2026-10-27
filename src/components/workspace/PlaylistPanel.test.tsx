@@ -39,6 +39,8 @@ function renderPanel(overrides: Partial<Parameters<typeof PlaylistPanel>[0]> = {
     onRemoveItem: vi.fn(),
     onMoveItem: vi.fn(),
     onOpenItem: vi.fn(),
+    onAddDocuments: vi.fn(),
+    onReload: vi.fn(),
     ...overrides,
   }
   const view = render(<PlaylistPanel {...props} />)
@@ -70,10 +72,10 @@ describe('PlaylistPanel', () => {
 
     fireEvent.click(within(dialog).getByRole('button', { name: t.createAction }))
 
-    expect(props.onCreate).toHaveBeenCalledWith('文档集 2', expect.objectContaining({
+    expect(props.onCreate).toHaveBeenCalledWith('文档集 2', [expect.objectContaining({
       path: 'D:\\novel\\new.md',
       title: 'new.md',
-    }))
+    })])
   })
 
   it('can skip adding the current document', () => {
@@ -85,7 +87,7 @@ describe('PlaylistPanel', () => {
     fireEvent.change(within(dialog).getByRole('textbox', { name: t.playlistNameLabel }), { target: { value: '番外合集' } })
     fireEvent.click(within(dialog).getByRole('button', { name: t.createAction }))
 
-    expect(props.onCreate).toHaveBeenCalledWith('番外合集', undefined)
+    expect(props.onCreate).toHaveBeenCalledWith('番外合集', [])
   })
 
   it('hides the add-current option when no document is open', () => {
@@ -96,7 +98,7 @@ describe('PlaylistPanel', () => {
     expect(within(dialog).queryByRole('checkbox')).toBeNull()
     fireEvent.click(within(dialog).getByRole('button', { name: t.createAction }))
 
-    expect(props.onCreate).toHaveBeenCalledWith('文档集 2', undefined)
+    expect(props.onCreate).toHaveBeenCalledWith('文档集 2', [])
   })
 
   it('cancels creation with Escape and keeps the default name disabled when blank', () => {
@@ -175,12 +177,41 @@ describe('PlaylistPanel', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('removes an item', () => {
+  it('removes an item only after the confirmation step', () => {
     const props = renderPanel()
 
     fireEvent.click(screen.getByRole('button', { name: '从文档集移除: B' }))
+    expect(props.onRemoveItem).not.toHaveBeenCalled()
 
+    fireEvent.click(screen.getByRole('button', { name: '确认移除: B' }))
     expect(props.onRemoveItem).toHaveBeenCalledWith('p1', 'D:\\novel\\b.md')
+  })
+
+  it('cancels a pending item removal when clicking elsewhere', () => {
+    const props = renderPanel()
+
+    fireEvent.click(screen.getByRole('button', { name: '从文档集移除: B' }))
+    expect(screen.getByRole('button', { name: '确认移除: B' })).toBeInTheDocument()
+
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('button', { name: '确认移除: B' })).toBeNull()
+    expect(screen.getByRole('button', { name: '从文档集移除: B' })).toBeInTheDocument()
+    expect(props.onRemoveItem).not.toHaveBeenCalled()
+  })
+
+  it('adds documents from the file picker and reloads collections', () => {
+    const props = renderPanel()
+
+    fireEvent.click(screen.getByRole('button', { name: t.addDocuments }))
+    expect(props.onAddDocuments).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: t.reloadCollections }))
+    expect(props.onReload).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks the panel while a file is dragged over it', () => {
+    const { container } = renderPanel({ isDropTarget: true })
+    expect(container.querySelector('.playlist-panel.drop-target')).toBeTruthy()
   })
 
   it('marks items that have a saved reading position', () => {

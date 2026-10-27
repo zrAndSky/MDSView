@@ -25,6 +25,10 @@ const MAX_NAME_LENGTH = 80
 
 export const EMPTY_PLAYLISTS: PlaylistsState = { version: 1, playlists: [], activePlaylistId: null }
 
+export function playlistItemFromPath(path: string, addedAt = new Date().toISOString()): PlaylistItem {
+  return { path, title: basename(path), addedAt }
+}
+
 export function createPlaylist(state: PlaylistsState, name: string): PlaylistsState {
   const trimmed = sanitizeName(name)
   if (!trimmed || state.playlists.length >= MAX_PLAYLISTS) {

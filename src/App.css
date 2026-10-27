@@ -3644,8 +3644,13 @@
 
 .playlist-actions-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+
+.playlist-add-files {
+  padding: 4px 7px;
 }
 
 .playlist-more-wrap {
@@ -3793,6 +3798,26 @@
 .playlist-remove:hover {
   background: var(--control-hover);
   color: var(--text-strong);
+}
+
+.playlist-remove.confirming {
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.12);
+}
+
+.playlist-remove svg {
+  width: 13px;
+  height: 13px;
+}
+
+:root[data-mdview-color-theme='dark'] .playlist-remove.confirming {
+  color: #ff9d97;
+}
+
+.playlist-panel.drop-target {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+  background: var(--accent-soft);
 }
 
 .split-toolbar-actions {

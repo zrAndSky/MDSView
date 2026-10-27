@@ -13,11 +13,22 @@ type UseFileShortcutsOptions = {
   onSave: () => Promise<boolean>
   onSaveAs: () => void | Promise<void>
   onSaveSuccess: () => void
+  onRefresh?: () => void
 }
 
 export function useFileShortcuts(options: UseFileShortcutsOptions): ShortcutPlatform {
   const platform = useMemo(() => detectShortcutPlatform(), [])
   const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (event.key === 'F5' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+      event.preventDefault()
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) {
+        return
+      }
+      options.onCloseMenu()
+      options.onRefresh?.()
+      return
+    }
+
     const isNewShortcut = matchesShortcut(event, { key: 'n' }, platform)
     const isOpenShortcut = matchesShortcut(event, { key: 'o' }, platform)
     const isSaveShortcut = matchesShortcut(event, { key: 's' }, platform)

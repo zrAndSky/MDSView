@@ -2378,7 +2378,7 @@ dependencies = [
 
 [[package]]
 name = "mdview"
-version = "3.6.5"
+version = "3.6.6"
 dependencies = [
  "base64 0.22.1",
  "font-kit",

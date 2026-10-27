@@ -73,6 +73,7 @@ export type FileAccess = {
   openExportResult?: (path: string, reveal: boolean) => Promise<void>
   openMarkdownFile: () => Promise<OpenedMarkdownFile | null>
   openMarkdownFileAtPath: (path: string) => Promise<OpenedMarkdownFile>
+  pickMarkdownFiles?: () => Promise<string[]>
   revealFileInFolder: (path: string) => Promise<void>
   saveMarkdownFile: (path: string, content: string, expectedRevision?: string) => Promise<MarkdownFileSaveResult | string>
   saveMarkdownFileAs: (content: string, defaultPath: string) => Promise<SavedMarkdownFile | string | null>
@@ -119,6 +120,14 @@ export const tauriFileAccess: FileAccess = {
     }
 
     return invoke<OpenedMarkdownFile>('open_markdown_file_at_path', { path })
+  },
+
+  async pickMarkdownFiles() {
+    if (!isTauriRuntime()) {
+      return []
+    }
+
+    return invoke<string[]>('pick_markdown_files')
   },
 
   async revealFileInFolder(path) {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
-import { MoreHorizontal, PanelLeftClose, Plus } from 'lucide-react'
+import { Check, MoreHorizontal, PanelLeftClose, Plus, RefreshCw, X } from 'lucide-react'
 import type { Playlist, PlaylistItem, PlaylistsState } from '../../domain/playlists'
 import { normalizeReadingSessionPath, loadReadingSession } from '../../domain/readingSessions'
 import type { Translation } from '../../i18n'
@@ -11,7 +11,10 @@ type PlaylistPanelProps = {
   currentPath: string | null
   currentTitle: string
   t: Translation
-  onCreate: (name: string, item?: PlaylistItem) => void
+  onCreate: (name: string, items?: PlaylistItem[]) => void
+  onAddDocuments: () => void
+  onReload: () => void
+  isDropTarget?: boolean
   onSelect: (id: string) => void
   onRename: (id: string, name: string) => void
   onDelete: (id: string) => void
@@ -29,6 +32,9 @@ export function PlaylistPanel({
   currentTitle,
   t,
   onCreate,
+  onAddDocuments,
+  onReload,
+  isDropTarget = false,
   onSelect,
   onRename,
   onDelete,
@@ -43,6 +49,7 @@ export function PlaylistPanel({
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [confirmRemovePath, setConfirmRemovePath] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [overIndex, setOverIndex] = useState<number | null>(null)
@@ -55,9 +62,25 @@ export function PlaylistPanel({
     setIsRenaming(false)
     setIsConfirmingDelete(false)
     setIsMenuOpen(false)
+    setConfirmRemovePath(null)
     setDragIndex(null)
     setOverIndex(null)
   }
+
+  useEffect(() => {
+    if (!confirmRemovePath) {
+      return
+    }
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('[data-remove-confirm]')) {
+        return
+      }
+      setConfirmRemovePath(null)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [confirmRemovePath])
 
   useEffect(() => {
     if (!isMenuOpen) {
@@ -108,10 +131,13 @@ export function PlaylistPanel({
   }
 
   return (
-    <section className="playlist-panel" aria-label={t.playlistsTab}>
+    <section className={`playlist-panel${isDropTarget ? ' drop-target' : ''}`} aria-label={t.playlistsTab}>
       <header className="panel-header">
         <h2>{t.playlistsTab}</h2>
         <div className="panel-header-actions">
+          <button type="button" className="panel-close" onClick={onReload} aria-label={t.reloadCollections} title={t.reloadCollections}>
+            <RefreshCw aria-hidden="true" />
+          </button>
           <button
             type="button"
             className="panel-close"
@@ -195,6 +221,9 @@ export function PlaylistPanel({
                     }}
                   >
                     {currentAlreadyAdded ? t.alreadyInPlaylist : t.addCurrentFile}
+                  </button>
+                  <button type="button" className="playlist-action playlist-add-files" onClick={onAddDocuments}>
+                    {t.addDocuments}
                   </button>
                   <div className="playlist-more-wrap" ref={menuRef}>
                     <button
@@ -295,12 +324,20 @@ export function PlaylistPanel({
                         </button>
                         <button
                           type="button"
-                          className="playlist-remove"
-                          aria-label={`${t.removeFromPlaylist}: ${item.title}`}
-                          title={t.removeFromPlaylist}
-                          onClick={() => onRemoveItem(activePlaylist.id, item.path)}
+                          className={`playlist-remove${confirmRemovePath === item.path ? ' confirming' : ''}`}
+                          data-remove-confirm={confirmRemovePath === item.path ? 'true' : undefined}
+                          aria-label={confirmRemovePath === item.path ? `${t.confirmRemoveItem}: ${item.title}` : `${t.removeFromPlaylist}: ${item.title}`}
+                          title={confirmRemovePath === item.path ? t.confirmRemoveItem : t.removeFromPlaylist}
+                          onClick={() => {
+                            if (confirmRemovePath === item.path) {
+                              setConfirmRemovePath(null)
+                              onRemoveItem(activePlaylist.id, item.path)
+                            } else {
+                              setConfirmRemovePath(item.path)
+                            }
+                          }}
                         >
-                          ×
+                          {confirmRemovePath === item.path ? <Check aria-hidden="true" /> : <X aria-hidden="true" />}
                         </button>
                       </li>
                     )
@@ -321,8 +358,8 @@ export function PlaylistPanel({
           onCreate={(name, addCurrent) => {
             setIsCreating(false)
             onCreate(name, addCurrent && currentPath
-              ? { path: currentPath, title: currentTitle, addedAt: new Date().toISOString() }
-              : undefined)
+              ? [{ path: currentPath, title: currentTitle, addedAt: new Date().toISOString() }]
+              : [])
           }}
         />
       ) : null}
