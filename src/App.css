@@ -3511,9 +3511,15 @@
   color: var(--accent);
 }
 
-.playlist-new {
-  align-self: stretch;
-  text-align: center;
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.panel-header-actions .panel-close {
+  width: 26px;
+  height: 26px;
 }
 
 .playlist-hint {
@@ -3583,9 +3589,80 @@
   border-top: 1px solid var(--border);
 }
 
-.playlist-toolbar {
+.playlist-actions-row {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+.playlist-more-wrap {
+  position: relative;
+  margin-left: auto;
+  flex: none;
+}
+
+.playlist-more {
+  width: 26px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--segmented-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.playlist-more:hover,
+.playlist-more.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.playlist-more svg {
+  width: 14px;
+  height: 14px;
+}
+
+.playlist-more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 7;
+  min-width: 132px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: var(--floating-shadow);
+}
+
+.playlist-more-menu button {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: 600 12px/1.3 var(--ui-font);
+  text-align: left;
+  cursor: pointer;
+}
+
+.playlist-more-menu button:hover {
+  background: var(--control-hover);
+  color: var(--accent);
+}
+
+.playlist-more-menu button.danger {
+  color: #b91c1c;
+}
+
+:root[data-mdview-color-theme='dark'] .playlist-more-menu button.danger {
+  color: #ff9d97;
 }
 
 .playlist-rename input {

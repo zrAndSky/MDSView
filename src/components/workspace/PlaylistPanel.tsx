@@ -1,5 +1,5 @@
-import { useMemo, useState, type DragEvent } from 'react'
-import { PanelLeftClose } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { MoreHorizontal, PanelLeftClose, Plus } from 'lucide-react'
 import type { Playlist, PlaylistItem, PlaylistsState } from '../../domain/playlists'
 import { normalizeReadingSessionPath, loadReadingSession } from '../../domain/readingSessions'
 import type { Translation } from '../../i18n'
@@ -40,6 +40,8 @@ export function PlaylistPanel({
   const [isRenaming, setIsRenaming] = useState(false)
   const [draftName, setDraftName] = useState('')
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [overIndex, setOverIndex] = useState<number | null>(null)
   const activeId = activePlaylist?.id ?? null
@@ -50,9 +52,24 @@ export function PlaylistPanel({
     setLastActiveId(activeId)
     setIsRenaming(false)
     setIsConfirmingDelete(false)
+    setIsMenuOpen(false)
     setDragIndex(null)
     setOverIndex(null)
   }
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return
+    }
+    function handlePointerDown(event: PointerEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false)
+        setIsConfirmingDelete(false)
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [isMenuOpen])
 
   const resumablePaths = useMemo(
     () => new Set(items.filter((item) => loadReadingSession(item.path)).map((item) => normalizeReadingSessionPath(item.path))),
@@ -65,6 +82,7 @@ export function PlaylistPanel({
     setDraftName(playlist.name)
     setIsRenaming(true)
     setIsConfirmingDelete(false)
+    setIsMenuOpen(false)
   }
 
   function commitRename() {
@@ -91,19 +109,23 @@ export function PlaylistPanel({
     <section className="playlist-panel" aria-label={t.playlistsTab}>
       <header className="panel-header">
         <h2>{t.playlistsTab}</h2>
-        {onClose ? (
-          <button type="button" className="panel-close" onClick={onClose} aria-label={t.collapseCollections} title={t.collapseCollections}>
-            <PanelLeftClose aria-hidden="true" />
+        <div className="panel-header-actions">
+          <button
+            type="button"
+            className="panel-close"
+            onClick={() => onCreate(t.playlistDefaultName(state.playlists.length + 1))}
+            aria-label={t.newPlaylist}
+            title={t.newPlaylist}
+          >
+            <Plus aria-hidden="true" />
           </button>
-        ) : null}
+          {onClose ? (
+            <button type="button" className="panel-close" onClick={onClose} aria-label={t.collapseCollections} title={t.collapseCollections}>
+              <PanelLeftClose aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
       </header>
-      <button
-        type="button"
-        className="playlist-action playlist-new"
-        onClick={() => onCreate(t.playlistDefaultName(state.playlists.length + 1))}
-      >
-        + {t.newPlaylist}
-      </button>
 
       {state.playlists.length === 0 ? (
         <p className="playlist-hint">{t.playlistsEmpty}</p>
@@ -150,44 +172,76 @@ export function PlaylistPanel({
                   />
                 </form>
               ) : (
-                <div className="playlist-toolbar">
-                  <button type="button" className="playlist-action" onClick={() => startRenaming(activePlaylist)}>
-                    {t.renamePlaylist}
-                  </button>
+                <div className="playlist-actions-row">
                   <button
                     type="button"
-                    className={`playlist-action${isConfirmingDelete ? ' danger' : ''}`}
+                    className="playlist-action playlist-add"
+                    disabled={!currentPath || currentAlreadyAdded}
                     onClick={() => {
-                      if (isConfirmingDelete) {
-                        setIsConfirmingDelete(false)
-                        onDelete(activePlaylist.id)
-                      } else {
-                        setIsConfirmingDelete(true)
+                      if (!currentPath) {
+                        return
                       }
+                      onAddCurrent(activePlaylist.id, {
+                        path: currentPath,
+                        title: currentTitle,
+                        addedAt: new Date().toISOString(),
+                      })
                     }}
                   >
-                    {isConfirmingDelete ? t.confirmDeletePlaylist : t.deletePlaylist}
+                    {currentAlreadyAdded ? t.alreadyInPlaylist : t.addCurrentFile}
                   </button>
+                  <div className="playlist-more-wrap" ref={menuRef}>
+                    <button
+                      type="button"
+                      className={`playlist-more${isMenuOpen ? ' active' : ''}`}
+                      aria-label={t.moreActions}
+                      title={t.moreActions}
+                      aria-haspopup="menu"
+                      aria-expanded={isMenuOpen}
+                      onClick={() => {
+                        setIsMenuOpen((open) => !open)
+                        setIsConfirmingDelete(false)
+                      }}
+                    >
+                      <MoreHorizontal aria-hidden="true" />
+                    </button>
+                    {isMenuOpen ? (
+                      <div
+                        className="playlist-more-menu"
+                        role="menu"
+                        aria-label={t.moreActions}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Escape') {
+                            event.preventDefault()
+                            setIsMenuOpen(false)
+                            setIsConfirmingDelete(false)
+                          }
+                        }}
+                      >
+                        <button type="button" role="menuitem" onClick={() => startRenaming(activePlaylist)}>
+                          {t.renamePlaylist}
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className={isConfirmingDelete ? 'danger' : ''}
+                          onClick={() => {
+                            if (isConfirmingDelete) {
+                              setIsConfirmingDelete(false)
+                              setIsMenuOpen(false)
+                              onDelete(activePlaylist.id)
+                            } else {
+                              setIsConfirmingDelete(true)
+                            }
+                          }}
+                        >
+                          {isConfirmingDelete ? t.confirmDeletePlaylist : t.deletePlaylist}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               )}
-
-              <button
-                type="button"
-                className="playlist-action playlist-add"
-                disabled={!currentPath || currentAlreadyAdded}
-                onClick={() => {
-                  if (!currentPath) {
-                    return
-                  }
-                  onAddCurrent(activePlaylist.id, {
-                    path: currentPath,
-                    title: currentTitle,
-                    addedAt: new Date().toISOString(),
-                  })
-                }}
-              >
-                {currentAlreadyAdded ? t.alreadyInPlaylist : t.addCurrentFile}
-              </button>
 
               {items.length === 0 ? (
                 <p className="playlist-hint">{t.playlistEmpty}</p>

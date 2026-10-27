@@ -62,7 +62,7 @@ describe('PlaylistPanel', () => {
   it('creates a playlist with the next default name', () => {
     const props = renderPanel()
 
-    fireEvent.click(screen.getByRole('button', { name: '+ 新建文档集' }))
+    fireEvent.click(screen.getByRole('button', { name: t.newPlaylist }))
 
     expect(props.onCreate).toHaveBeenCalledWith('文档集 2')
   })
@@ -90,10 +90,11 @@ describe('PlaylistPanel', () => {
     expect(screen.getByRole('button', { name: '已在文档集中' })).toBeDisabled()
   })
 
-  it('renames a playlist inline', () => {
+  it('renames a playlist inline from the more menu', () => {
     const props = renderPanel()
 
-    fireEvent.click(screen.getByRole('button', { name: '重命名' }))
+    fireEvent.click(screen.getByRole('button', { name: t.moreActions }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '重命名' }))
     const input = screen.getByRole('textbox', { name: '重命名' })
     fireEvent.change(input, { target: { value: '番外二' } })
     fireEvent.submit(input.closest('form')!)
@@ -101,14 +102,27 @@ describe('PlaylistPanel', () => {
     expect(props.onRename).toHaveBeenCalledWith('p1', '番外二')
   })
 
-  it('deletes only after the confirmation step', () => {
+  it('deletes only after the confirmation step inside the more menu', () => {
     const props = renderPanel()
 
-    fireEvent.click(screen.getByRole('button', { name: '删除' }))
+    expect(screen.queryByRole('menu')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: t.moreActions }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除' }))
     expect(props.onDelete).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: '确认删除' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '确认删除' }))
     expect(props.onDelete).toHaveBeenCalledWith('p1')
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('closes the more menu when clicking outside', () => {
+    renderPanel()
+
+    fireEvent.click(screen.getByRole('button', { name: t.moreActions }))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('menu')).toBeNull()
   })
 
   it('removes an item', () => {

@@ -277,6 +277,7 @@ export const korean: Translation = {
   renamePlaylist: '이름 바꾸기',
   deletePlaylist: '삭제',
   confirmDeletePlaylist: '삭제 확인',
+  moreActions: '더 많은 작업',
   addCurrentFile: '현재 문서 추가',
   alreadyInPlaylist: '이미 추가됨',
   removeFromPlaylist: '문서 모음에서 제거',

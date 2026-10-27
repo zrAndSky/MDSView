@@ -277,6 +277,7 @@ export const japanese: Translation = {
   renamePlaylist: '名前を変更',
   deletePlaylist: '削除',
   confirmDeletePlaylist: '削除を確認',
+  moreActions: 'その他の操作',
   addCurrentFile: '現在の文書を追加',
   alreadyInPlaylist: '追加済み',
   removeFromPlaylist: 'ドキュメント集から削除',

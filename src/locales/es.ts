@@ -277,6 +277,7 @@ export const spanish: Translation = {
   renamePlaylist: 'Renombrar',
   deletePlaylist: 'Eliminar',
   confirmDeletePlaylist: 'Confirmar eliminación',
+  moreActions: 'Más acciones',
   addCurrentFile: 'Añadir documento actual',
   alreadyInPlaylist: 'Ya está en la colección',
   removeFromPlaylist: 'Quitar de la colección',
