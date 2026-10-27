@@ -129,6 +129,16 @@ where
         .map_err(|error| format!("后台任务失败：{error}"))?
 }
 
+fn configure_background_command(command: &mut Command) {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+}
+
 fn git_program() -> &'static PathBuf {
     static GIT: OnceLock<PathBuf> = OnceLock::new();
     GIT.get_or_init(|| {
@@ -138,7 +148,9 @@ fn git_program() -> &'static PathBuf {
             r"C:\Program Files\Git\bin\git.exe".to_string(),
         ];
         for candidate in candidates {
-            let ok = Command::new(&candidate)
+            let mut command = Command::new(&candidate);
+            configure_background_command(&mut command);
+            let ok = command
                 .arg("--version")
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
@@ -165,7 +177,9 @@ macro_rules! git_args {
 }
 
 fn git_output(repo: &Path, args: &[String]) -> Result<Output, String> {
-    Command::new(git_program())
+    let mut command = Command::new(git_program());
+    configure_background_command(&mut command);
+    command
         .arg("-C")
         .arg(repo)
         .args(args)
@@ -210,7 +224,9 @@ fn find_repo_root(path: &Path) -> Result<Option<PathBuf>, String> {
     } else {
         path.parent().unwrap_or(path).to_path_buf()
     };
-    let output = Command::new(git_program())
+    let mut command = Command::new(git_program());
+    configure_background_command(&mut command);
+    let output = command
         .arg("-C")
         .arg(&start)
         .args(["rev-parse", "--show-toplevel"])
@@ -295,7 +311,9 @@ fn snapshot_repo(root: &Path, force: bool) -> Result<GitSnapshotResult, String> 
     let index = index_path.to_string_lossy().to_string();
 
     let run_index = |args: &[String]| -> Result<Output, String> {
-        Command::new(git_program())
+        let mut command = Command::new(git_program());
+        configure_background_command(&mut command);
+        command
             .arg("-C")
             .arg(root)
             .args(args)
@@ -395,6 +413,7 @@ fn commit_tree(
     ident: Option<&CommitIdent>,
 ) -> Result<String, String> {
     let mut command = Command::new(git_program());
+    configure_background_command(&mut command);
     command.arg("-C").arg(root).args(["commit-tree", tree]);
     if let Some(parent) = parent {
         command.arg("-p").arg(parent);
@@ -596,7 +615,9 @@ fn history_size(root: &Path) -> Result<GitHistorySize, String> {
     let objects = rev_list(root, &["rev-list", "--objects"], true)?;
     let mut bytes = 0u64;
     if !objects.is_empty() {
-        let mut child = Command::new(git_program())
+        let mut command = Command::new(git_program());
+        configure_background_command(&mut command);
+        let mut child = command
             .arg("-C")
             .arg(root)
             .args(["cat-file", "--batch-check=%(objectsize)"])
