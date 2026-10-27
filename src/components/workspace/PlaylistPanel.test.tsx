@@ -230,20 +230,40 @@ describe('PlaylistPanel', () => {
     expect(within(rows[0]).queryByText('续读')).not.toBeInTheDocument()
   })
 
-  it('reorders items with drag and drop', () => {
+  it('reorders items by dragging with the pointer', () => {
     const props = renderPanel()
     const items = within(screen.getByRole('list', { name: '在写的番外' })).getAllByRole('listitem')
-    const dataTransfer = {
-      effectAllowed: 'move',
-      dropEffect: 'move',
-      setData: vi.fn(),
-      getData: vi.fn(),
-    }
+    items.forEach((item, index) => {
+      item.getBoundingClientRect = () => ({
+        top: 100 + index * 30,
+        bottom: 128 + index * 30,
+        height: 28,
+        left: 0,
+        right: 200,
+        width: 200,
+        x: 0,
+        y: 100 + index * 30,
+        toJSON: () => ({}),
+      }) as DOMRect
+    })
 
-    fireEvent.dragStart(items[0], { dataTransfer })
-    fireEvent.dragOver(items[2], { dataTransfer })
-    fireEvent.drop(items[2], { dataTransfer })
+    fireEvent.pointerDown(items[0], { button: 0, clientY: 110 })
+    fireEvent.pointerMove(window, { clientY: 170 })
+    fireEvent.pointerUp(window)
 
     expect(props.onMoveItem).toHaveBeenCalledWith('p1', 0, 2)
+  })
+
+  it('does not reorder or open when the pointer moves less than the drag threshold', () => {
+    const props = renderPanel()
+    const items = within(screen.getByRole('list', { name: '在写的番外' })).getAllByRole('listitem')
+
+    fireEvent.pointerDown(items[0], { button: 0, clientY: 110 })
+    fireEvent.pointerMove(window, { clientY: 112 })
+    fireEvent.pointerUp(window)
+    fireEvent.click(items[0].querySelector('.playlist-item-open') as HTMLElement)
+
+    expect(props.onMoveItem).not.toHaveBeenCalled()
+    expect(props.onOpenItem).toHaveBeenCalledWith('D:\\novel\\a.md')
   })
 })

@@ -3738,6 +3738,11 @@
   align-items: center;
   gap: 2px;
   border-radius: 6px;
+  cursor: grab;
+}
+
+.playlist-item.dragging {
+  cursor: grabbing;
 }
 
 .playlist-item.dragging {

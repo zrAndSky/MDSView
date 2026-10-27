@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Check, MoreHorizontal, PanelLeftClose, Plus, RefreshCw, X } from 'lucide-react'
 import type { Playlist, PlaylistItem, PlaylistsState } from '../../domain/playlists'
 import { normalizeReadingSessionPath, loadReadingSession } from '../../domain/readingSessions'
@@ -53,6 +53,9 @@ export function PlaylistPanel({
   const menuRef = useRef<HTMLDivElement | null>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [overIndex, setOverIndex] = useState<number | null>(null)
+  const dragStateRef = useRef<{ index: number; startY: number; active: boolean } | null>(null)
+  const overIndexRef = useRef<number | null>(null)
+  const suppressOpenRef = useRef(false)
   const activeId = activePlaylist?.id ?? null
   const items = useMemo(() => activePlaylist?.items ?? [], [activePlaylist])
 
@@ -121,13 +124,64 @@ export function PlaylistPanel({
     setIsRenaming(false)
   }
 
-  function handleDrop(event: DragEvent<HTMLLIElement>, index: number) {
-    event.preventDefault()
-    if (dragIndex !== null && dragIndex !== index && activePlaylist) {
-      onMoveItem(activePlaylist.id, dragIndex, index)
+  useEffect(() => {
+    function handlePointerMove(event: PointerEvent) {
+      const drag = dragStateRef.current
+      if (!drag) {
+        return
+      }
+      if (!drag.active) {
+        if (Math.abs(event.clientY - drag.startY) < 4) {
+          return
+        }
+        drag.active = true
+        setDragIndex(drag.index)
+      }
+      const rows = [...document.querySelectorAll<HTMLElement>('.playlist-item')]
+      let target = drag.index
+      rows.forEach((row, index) => {
+        const rect = row.getBoundingClientRect()
+        if (event.clientY >= rect.top && event.clientY <= rect.bottom) {
+          target = index
+        }
+      })
+      if (overIndexRef.current !== target) {
+        overIndexRef.current = target
+        setOverIndex(target)
+      }
     }
-    setDragIndex(null)
-    setOverIndex(null)
+
+    function handlePointerUp() {
+      const drag = dragStateRef.current
+      if (drag?.active) {
+        suppressOpenRef.current = true
+        const target = overIndexRef.current
+        if (target !== null && target !== drag.index && activePlaylist) {
+          onMoveItem(activePlaylist.id, drag.index, target)
+        }
+      }
+      dragStateRef.current = null
+      overIndexRef.current = null
+      setDragIndex(null)
+      setOverIndex(null)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerUp)
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+    }
+  }, [activePlaylist, onMoveItem])
+
+  function handleItemPointerDown(event: ReactPointerEvent<HTMLLIElement>, index: number) {
+    if (event.button !== 0 || (event.target as HTMLElement).closest('.playlist-remove')) {
+      return
+    }
+    overIndexRef.current = null
+    dragStateRef.current = { index, startY: event.clientY, active: false }
   }
 
   return (
@@ -292,30 +346,19 @@ export function PlaylistPanel({
                           dragIndex === index ? 'dragging' : '',
                           overIndex === index && dragIndex !== null && dragIndex !== index ? 'drag-over' : '',
                         ].filter(Boolean).join(' ')}
-                        draggable
-                        onDragStart={(event) => {
-                          setDragIndex(index)
-                          event.dataTransfer.effectAllowed = 'move'
-                          event.dataTransfer.setData('text/plain', item.path)
-                        }}
-                        onDragOver={(event) => {
-                          event.preventDefault()
-                          if (overIndex !== index) {
-                            setOverIndex(index)
-                          }
-                        }}
-                        onDragLeave={() => setOverIndex((current) => current === index ? null : current)}
-                        onDrop={(event) => handleDrop(event, index)}
-                        onDragEnd={() => {
-                          setDragIndex(null)
-                          setOverIndex(null)
-                        }}
+                        onPointerDown={(event) => handleItemPointerDown(event, index)}
                       >
                         <button
                           type="button"
                           className="playlist-item-open"
                           title={item.path}
-                          onClick={() => onOpenItem(item.path)}
+                          onClick={() => {
+                            if (suppressOpenRef.current) {
+                              suppressOpenRef.current = false
+                              return
+                            }
+                            onOpenItem(item.path)
+                          }}
                         >
                           <span className="playlist-item-title">{item.title}</span>
                           {isResumable ? (
