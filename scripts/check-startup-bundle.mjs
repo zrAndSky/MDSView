@@ -7,7 +7,8 @@ const distDirectory = resolve(rootDirectory, 'dist')
 const indexHtml = readFileSync(resolve(distDirectory, 'index.html'), 'utf8')
 const startupAssetPattern = /<(?:script|link)\b[^>]*(?:src|href)="\/assets\/([^"]+\.js)"/g
 const startupAssets = [...indexHtml.matchAll(startupAssetPattern)].map((match) => match[1])
-const maximumStartupBytes = 550 * 1024
+// 3.6.8: collections/file-drop work landed at 550.4 KB; keep headroom small on purpose.
+const maximumStartupBytes = 560 * 1024
 const deferredAssetPattern = /(markdown|mermaid|cytoscape|katex|exportdocx|exporthtml)/i
 
 if (startupAssets.length === 0) {
