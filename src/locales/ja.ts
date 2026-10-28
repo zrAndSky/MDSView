@@ -287,6 +287,7 @@ export const japanese: Translation = {
   addDocuments: 'ファイルを追加',
   reloadCollections: 'ドキュメント集を更新',
   confirmRemoveItem: '削除の確認',
+  addedToCollections: (count: number) => `${count} 件のドキュメントを追加しました`,
   addCurrentFile: '現在の文書を追加',
   alreadyInPlaylist: '追加済み',
   removeFromPlaylist: 'ドキュメント集から削除',

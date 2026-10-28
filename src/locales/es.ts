@@ -287,6 +287,7 @@ export const spanish: Translation = {
   addDocuments: 'Añadir archivos',
   reloadCollections: 'Actualizar colecciones',
   confirmRemoveItem: 'Confirmar eliminación',
+  addedToCollections: (count: number) => `Se añadieron ${count} documentos`,
   addCurrentFile: 'Añadir documento actual',
   alreadyInPlaylist: 'Ya está en la colección',
   removeFromPlaylist: 'Quitar de la colección',

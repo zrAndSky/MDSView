@@ -47,35 +47,55 @@ export function useCollectionsFileDrop({
     }
 
     let disposed = false
-    let unlisten: (() => void) | undefined
+    const unlisteners: Array<() => void> = []
+    let lastDropKey = ''
+    let lastDropAt = 0
+
+    const handle = (payload: {
+      type: 'enter' | 'over' | 'drop' | 'leave'
+      paths?: string[]
+      position?: { x: number; y: number }
+    }) => {
+      if (payload.type === 'enter' || payload.type === 'over') {
+        hoverChange(payload.position ? overPanel(payload.position) : false)
+        return
+      }
+      if (payload.type !== 'drop') {
+        hoverChange(false)
+        return
+      }
+
+      hoverChange(false)
+      const paths = markdownPaths(payload.paths ?? [])
+      if (paths.length === 0) {
+        return
+      }
+      const key = paths.join('|')
+      const now = Date.now()
+      if (key === lastDropKey && now - lastDropAt < 400) {
+        return
+      }
+      lastDropKey = key
+      lastDropAt = now
+      dropFiles(paths)
+    }
 
     void (async () => {
+      // Drag events are emitted to the window target; the webview listener is a
+      // safety net for runtimes that scope them differently.
       try {
-        // Loaded on demand so the webview API stays out of the startup bundle.
+        const { getCurrentWindow } = await import('@tauri-apps/api/window')
+        const stop = await getCurrentWindow().onDragDropEvent((event) => handle(event.payload))
+        if (disposed) stop()
+        else unlisteners.push(stop)
+      } catch {
+        // Keep the webview listener as the fallback.
+      }
+      try {
         const { getCurrentWebview } = await import('@tauri-apps/api/webview')
-        const stop = await getCurrentWebview().onDragDropEvent((event) => {
-          const payload = event.payload
-          if (payload.type === 'enter' || payload.type === 'over') {
-            hoverChange(overPanel(payload.position))
-          } else if (payload.type === 'drop') {
-            const over = overPanel(payload.position)
-            hoverChange(false)
-            if (!over) {
-              return
-            }
-            const paths = markdownPaths(payload.paths)
-            if (paths.length > 0) {
-              dropFiles(paths)
-            }
-          } else {
-            hoverChange(false)
-          }
-        })
-        if (disposed) {
-          stop()
-        } else {
-          unlisten = stop
-        }
+        const stop = await getCurrentWebview().onDragDropEvent((event) => handle(event.payload))
+        if (disposed) stop()
+        else unlisteners.push(stop)
       } catch {
         // Drag and drop stays unavailable when the runtime does not expose it.
       }
@@ -83,7 +103,8 @@ export function useCollectionsFileDrop({
 
     return () => {
       disposed = true
-      unlisten?.()
+      unlisteners.forEach((stop) => stop())
+      unlisteners.length = 0
       hoverChange(false)
     }
   }, [enabled, panelSelector])

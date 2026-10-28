@@ -25,6 +25,7 @@ import { AppLogo } from './components/shell/AppLogo'
 import { DocumentOutline } from './components/workspace/DocumentOutline'
 import { PlaylistPanel } from './components/workspace/PlaylistPanel'
 import { playlistItemFromPath } from './domain/playlists'
+import { normalizeReadingSessionPath } from './domain/readingSessions'
 import { SidePanelColumn } from './components/workspace/SidePanelColumn'
 import { HistoryDrawer } from './components/history/HistoryDrawer'
 import { DocumentSearchBar } from './components/editor/DocumentSearchBar'
@@ -206,14 +207,18 @@ function AppWorkspace({
       return
     }
     const items = paths.map((path) => playlistItemFromPath(path))
+    const existing = new Set(
+      (playlists.activePlaylist?.items ?? []).map((item) => normalizeReadingSessionPath(item.path)),
+    )
+    const fresh = items.filter((item) => !existing.has(normalizeReadingSessionPath(item.path)))
     if (playlists.state.playlists.length === 0) {
       playlists.create(t.playlistDefaultName(1), items)
-      return
+    } else if (playlists.state.activePlaylistId) {
+      playlists.addItems(playlists.state.activePlaylistId, fresh.length > 0 ? fresh : items)
     }
-    if (playlists.state.activePlaylistId) {
-      playlists.addItems(playlists.state.activePlaylistId, items)
-    }
-  }, [playlists, t])
+    sidePanels.update({ collectionsOpen: true })
+    showAppToast(fresh.length > 0 ? t.addedToCollections(fresh.length) : t.alreadyInPlaylist)
+  }, [playlists, showAppToast, sidePanels, t])
   const handleAddDocuments = useCallback(async () => {
     const pick = fileAccess.pickMarkdownFiles
     if (!pick) {
@@ -222,7 +227,7 @@ function AppWorkspace({
     addPlaylistItems(await pick())
   }, [addPlaylistItems, fileAccess])
   useCollectionsFileDrop({
-    enabled: sidePanels.state.collectionsOpen,
+    enabled: true,
     onDropFiles: addPlaylistItems,
     onHoverChange: setIsCollectionsDropTarget,
   })

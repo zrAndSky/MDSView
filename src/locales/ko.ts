@@ -287,6 +287,7 @@ export const korean: Translation = {
   addDocuments: '파일 추가',
   reloadCollections: '문서 모음 새로 고침',
   confirmRemoveItem: '제거 확인',
+  addedToCollections: (count: number) => `문서 ${count}개를 추가했습니다`,
   addCurrentFile: '현재 문서 추가',
   alreadyInPlaylist: '이미 추가됨',
   removeFromPlaylist: '문서 모음에서 제거',
