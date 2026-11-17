@@ -63,7 +63,7 @@ pub(crate) fn ensure_markdown_path(path: &Path) -> Result<(), String> {
     if is_markdown_path(path) {
         Ok(())
     } else {
-        Err("Only Markdown files with .md or .markdown extensions are supported.".to_string())
+        Err("Only Markdown (.md, .markdown) or plain text (.txt) files are supported.".to_string())
     }
 }
 pub(crate) fn ensure_html_path(path: &Path) -> Result<(), String> {
@@ -83,8 +83,9 @@ pub(crate) fn ensure_docx_path(path: &Path) -> Result<(), String> {
 pub(crate) fn ensure_image_path(path: &Path) -> Result<(), String> {
     image_mime_type(path).map(|_| ())
 }
+// Editable text documents: Markdown sources plus plain-text files.
 pub(crate) fn is_markdown_path(path: &Path) -> bool {
-    has_extension(path, &["md", "markdown"])
+    has_extension(path, &["md", "markdown", "mdown", "mkdn", "txt"])
 }
 pub(crate) fn is_html_path(path: &Path) -> bool {
     has_extension(path, &["html", "htm"])
@@ -129,6 +130,15 @@ mod tests {
         assert!(ensure_html_path(Path::new("report.HTML")).is_ok());
         assert!(ensure_docx_path(Path::new("report.docx")).is_ok());
         assert!(ensure_html_path(Path::new("report.md")).is_err());
+    }
+    #[test]
+    fn accepts_markdown_and_plain_text_documents() {
+        for name in ["notes.md", "notes.MARKDOWN", "notes.mdown", "notes.mkdn", "notes.txt", "NOTES.TXT"] {
+            assert!(ensure_markdown_path(Path::new(name)).is_ok(), "{name} should open");
+        }
+        for name in ["notes.png", "notes.docx", "notes"] {
+            assert!(ensure_markdown_path(Path::new(name)).is_err(), "{name} should be rejected");
+        }
     }
     #[test]
     fn appends_safe_extensions() {

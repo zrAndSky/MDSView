@@ -1,0 +1,128 @@
+.document-tabs {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  height: 34px;
+  padding: 0 8px;
+  background: var(--toolbar-bg);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.document-tabs-list {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.document-tabs-list::-webkit-scrollbar {
+  height: 0;
+}
+
+.document-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 92px;
+  max-width: 200px;
+  padding: 0 3px 0 10px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.document-tab:hover {
+  color: var(--text);
+  background: var(--control-hover);
+}
+
+.document-tab.is-active {
+  color: var(--text-strong);
+  background: var(--app-bg);
+  border-color: var(--border);
+}
+
+.document-tab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.document-tab-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-tab-dirty {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dirty);
+}
+
+.document-tab-close {
+  display: none;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.document-tab-close svg {
+  width: 12px;
+  height: 12px;
+}
+
+.document-tab:hover .document-tab-close,
+.document-tab.is-active .document-tab-close {
+  display: grid;
+}
+
+.document-tab-close:hover {
+  color: var(--text-strong);
+  background: var(--segmented-bg);
+}
+
+.document-tab-new {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: auto 0;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.document-tab-new svg {
+  width: 14px;
+  height: 14px;
+}
+
+.document-tab-new:hover {
+  color: var(--text-strong);
+  background: var(--control-hover);
+}

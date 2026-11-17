@@ -262,12 +262,18 @@ export const tauriFileAccess: FileAccess = {
     }
 
     return listen<string[]>('opened-files', async (event) => {
-      const path = event.payload.at(0)
-      if (!path) {
-        return
-      }
+      // A single-instance handover can carry several paths in one payload.
+      for (const path of event.payload) {
+        if (!path) {
+          continue
+        }
 
-      callback(await invoke<OpenedMarkdownFile>('open_markdown_file_at_path', { path }))
+        try {
+          await callback(await invoke<OpenedMarkdownFile>('open_markdown_file_at_path', { path }))
+        } catch {
+          // A file that can no longer be opened must not block the remaining ones.
+        }
+      }
     })
   },
 }

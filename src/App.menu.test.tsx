@@ -105,6 +105,7 @@ describe('App', () => {
 
     expect(screen.getByRole('menuitem', { name: 'New' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Open Markdown File' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Compare documents…' })).toBeInTheDocument()
     expect(screen.getByText('Recent files')).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'recent.md' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Save' })).toBeInTheDocument()
@@ -116,6 +117,7 @@ describe('App', () => {
     ).toEqual([
       'New',
       'Open Markdown File',
+      'Compare documents…',
       'Save',
       'Save As',
       'Export as HTML',
@@ -161,7 +163,7 @@ describe('App', () => {
   it('runs common Windows file shortcuts from anywhere in the app', async () => {
     const saveMarkdownFile = vi.fn(async (path: string) => path)
     const saveMarkdownFileAs = vi.fn(async () => '/tmp/saved-as.md')
-    renderApp({
+    renderWelcomeApp({
       fileAccess: createFileAccess({
         startupFile: file('/tmp/draft.md', '# Draft'),
         openFile: file('/tmp/opened.md', '# Opened'),
@@ -184,7 +186,8 @@ describe('App', () => {
     })
 
     fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
-    expect(screen.getByText('Untitled.md')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(2))
+    expect(screen.getAllByText('Untitled.md').length).toBeGreaterThan(0)
 
     fireEvent.keyDown(window, { key: 'o', ctrlKey: true })
     expect(await screen.findByRole('heading', { name: 'Opened' })).toBeInTheDocument()

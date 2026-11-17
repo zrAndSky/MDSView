@@ -78,6 +78,10 @@ describe('App auto save', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1)
     })
+    // Allow slack for the render pass that registers the debounce timer.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUTO_SAVE_DEBOUNCE_MS)
+    })
     expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
     expect(saveMarkdownFile).toHaveBeenCalledWith('/tmp/start.md', '# Start\n\nnew words', 'rev-1')
   })

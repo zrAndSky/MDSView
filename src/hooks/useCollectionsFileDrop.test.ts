@@ -24,13 +24,13 @@ describe('isPointInside', () => {
 })
 
 describe('markdownPaths', () => {
-  it('keeps only markdown files', () => {
+  it('keeps markdown and plain-text files', () => {
     expect(markdownPaths([
       'D:\\novel\\a.md',
       'D:\\novel\\b.MARKDOWN',
       'D:\\novel\\c.txt',
       'D:\\novel\\d',
       'D:\\novel\\e.mdown',
-    ])).toEqual(['D:\\novel\\a.md', 'D:\\novel\\b.MARKDOWN', 'D:\\novel\\e.mdown'])
+    ])).toEqual(['D:\\novel\\a.md', 'D:\\novel\\b.MARKDOWN', 'D:\\novel\\c.txt', 'D:\\novel\\e.mdown'])
   })
 })

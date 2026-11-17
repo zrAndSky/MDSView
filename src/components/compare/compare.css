@@ -1,0 +1,293 @@
+.compare-workspace {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-bg);
+}
+
+.compare-toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 14px;
+  background: var(--toolbar-bg);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.compare-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.compare-brand svg {
+  width: 15px;
+  height: 15px;
+  color: var(--accent);
+}
+
+.compare-brand-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compare-count {
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--segmented-bg);
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.compare-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.compare-toolbar-actions button,
+.compare-empty button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--control-text);
+  background: var(--surface-raised);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.compare-toolbar-actions button svg,
+.compare-empty button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.compare-toolbar-actions button:hover:not(:disabled),
+.compare-empty button:hover {
+  background: var(--control-hover);
+}
+
+.compare-toolbar-actions button:disabled {
+  color: var(--disabled);
+  cursor: default;
+}
+
+.compare-toolbar-actions .compare-exit {
+  color: var(--text-muted);
+}
+
+.compare-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 1px;
+  padding: 1px 0 0;
+  background: var(--border);
+  grid-template-columns: repeat(var(--compare-count, 2), minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+/* Three or four panes get unreadably narrow on small screens: wrap to two columns. */
+@media (max-width: 1180px) {
+  .compare-grid[data-count='3'],
+  .compare-grid[data-count='4'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.compare-pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--preview-bg);
+}
+
+.compare-pane[data-mode='edit'] {
+  background: var(--editor-bg);
+}
+
+.compare-pane-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 4px 0 9px;
+  border-bottom: 1px solid var(--border);
+  background: var(--toolbar-bg);
+}
+
+.compare-pane-index {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: var(--segmented-bg);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.compare-pane-title {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.compare-pane-dirty {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dirty);
+}
+
+.compare-pane-actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.compare-pane-actions button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.compare-pane-actions button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.compare-pane-actions button:hover:not(:disabled) {
+  color: var(--text-strong);
+  background: var(--control-hover);
+}
+
+.compare-pane-actions button.is-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.compare-pane-actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.compare-pane-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overflow-wrap: break-word;
+}
+
+/* Panes are narrow: drop the paper card so text keeps a usable width. */
+.compare-pane .markdown-preview {
+  width: 100%;
+  margin: 0;
+  padding: 16px 16px 36px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.72;
+}
+
+.compare-pane .plain-text-surface {
+  padding: 16px 16px 36px;
+  background: transparent;
+}
+
+.compare-pane .plain-text-preview {
+  font-size: 12.5px;
+}
+
+.compare-pane-editor {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 16px 16px 36px;
+  border: 0;
+  outline: none;
+  resize: none;
+  color: var(--editor-text);
+  background: var(--editor-bg);
+  font-family: var(--mono-font);
+  font-size: 12.5px;
+  line-height: 1.7;
+  tab-size: 2;
+}
+
+.compare-pane-loading {
+  padding: 24px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.compare-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 48px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.compare-empty p {
+  margin: 0;
+}
+
+.compare-status {
+  flex: none;
+  margin: 0;
+  padding: 7px 14px;
+  border-top: 1px solid var(--border);
+  color: var(--dirty);
+  background: var(--dirty-bg);
+  font-size: 12px;
+}

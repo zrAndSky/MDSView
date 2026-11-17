@@ -4,7 +4,7 @@ import type { ComponentProps } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { appInfo } from './appInfo'
-import { DOCUMENT_DRAFT_STORAGE_KEY } from './domain/documentDraft'
+import { DOCUMENT_DRAFT_STORAGE_KEY, loadDocumentDrafts } from './domain/documentDraft'
 import { RECENT_FILES_STORAGE_KEY, type RecentFile } from './domain/recentFiles'
 import { OUTLINE_PREFERENCES_STORAGE_KEY } from './domain/outlinePreferences'
 import type { FileAccess, OpenedMarkdownFile } from './platform/fileAccess'
@@ -21,34 +21,28 @@ describe('App', () => {
     setNavigatorPlatform('Win32')
   })
 
-  it.each(['saved', 'canceled', 'failed'] as const)('continues opening only when Save and continue is %s', async (outcome) => {
+  it('opens a file in a new tab without discarding unsaved edits', async () => {
     const user = userEvent.setup()
-    const access = createFileAccess({
-      openFile: file('/tmp/next.md', '# Next document'),
-      saveMarkdownFileAs: vi.fn(async () => {
-        if (outcome === 'failed') throw new Error('Disk is full')
-        return outcome === 'canceled' ? null : '/tmp/saved.md'
-      }),
-    })
+    const access = createFileAccess({ openFile: file('/tmp/next.md', '# Next document') })
     renderWelcomeApp({ fileAccess: access })
     await user.click(screen.getByRole('button', { name: 'Create new markdown file' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Markdown source' }), { target: { value: '# Keep these changes' } })
     await openFileMenu(user)
     await user.click(screen.getByRole('menuitem', { name: 'Open Markdown File' }))
-    expect(await screen.findByRole('dialog', { name: 'Save your changes?' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Save and continue' }))
-    if (outcome === 'saved') {
-      expect(await screen.findByRole('heading', { name: 'Next document' })).toBeInTheDocument()
-      expect(access.saveMarkdownFileAs).toHaveBeenCalledWith('# Keep these changes', 'Keep these changes.md')
-    } else {
-      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-      expect(access.openMarkdownFile).not.toHaveBeenCalled()
-      expect(screen.getByRole('textbox', { name: 'Markdown source' })).toHaveValue('# Keep these changes')
-    }
+
+    // Opening a document no longer replaces the current one, so nothing is discarded.
+    expect(await screen.findByRole('heading', { name: 'Next document' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(access.saveMarkdownFileAs).not.toHaveBeenCalled()
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
+
+    await user.click(screen.getAllByRole('tab')[0])
+    await user.click(screen.getByRole('button', { name: 'Edit markdown source' }))
+    expect(screen.getByRole('textbox', { name: 'Markdown source' })).toHaveValue('# Keep these changes')
   })
 
   it('loads a markdown file passed by the desktop shell at startup', async () => {
-    renderApp({ fileAccess: createFileAccess({ startupFile: file('/tmp/start.md', '# Startup') }) })
+    renderWelcomeApp({ fileAccess: createFileAccess({ startupFile: file('/tmp/start.md', '# Startup') }) })
 
     expect(
       await screen.findByRole('heading', { name: 'Startup' }, { timeout: 5000 }),
@@ -61,7 +55,7 @@ describe('App', () => {
 
   it('opens a markdown file from the File menu', async () => {
     const user = userEvent.setup()
-    renderApp({ fileAccess: createFileAccess({ openFile: file('/tmp/readme.md', '# Readme') }) })
+    renderWelcomeApp({ fileAccess: createFileAccess({ openFile: file('/tmp/readme.md', '# Readme') }) })
 
     await openFileMenu(user)
     await user.click(screen.getByRole('menuitem', { name: 'Open Markdown File' }))
@@ -273,10 +267,9 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Startup' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: 'Recover unsaved draft' })).not.toBeInTheDocument()
-    expect(JSON.parse(window.localStorage.getItem(DOCUMENT_DRAFT_STORAGE_KEY) ?? '{}')).toMatchObject({
-      id: 'older-draft',
-      content: '# Older draft',
-    })
+    expect(loadDocumentDrafts()).toContainEqual(
+      expect.objectContaining({ id: 'older-draft', content: '# Older draft' }),
+    )
   })
 
   it('discards a pending draft and returns to the welcome workspace', async () => {

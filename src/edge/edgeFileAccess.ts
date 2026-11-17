@@ -12,8 +12,11 @@ const DATABASE_NAME = 'mdview.edge.files.v1'
 const STORE_NAME = 'handles'
 const EDGE_FILE_PREFIX = 'edge-file://'
 const markdownPickerTypes = [{
-  description: 'Markdown files',
-  accept: { 'text/markdown': ['.md', '.markdown', '.mdown', '.mkdn', '.mdx'] },
+  description: 'Markdown and text files',
+  accept: {
+    'text/markdown': ['.md', '.markdown', '.mdown', '.mkdn', '.mdx'],
+    'text/plain': ['.txt'],
+  },
 }]
 
 type StoredFileHandle = {

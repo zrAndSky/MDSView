@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   DOCUMENT_DRAFT_MAX_AGE_MS,
+  DOCUMENT_DRAFT_MAX_ENTRIES,
   DOCUMENT_DRAFT_STORAGE_KEY,
   clearDocumentDraft,
   loadDocumentDraft,
+  loadDocumentDrafts,
   saveDocumentDraft,
   type RecoverableDraft,
 } from './documentDraft'
@@ -50,6 +52,32 @@ describe('documentDraft', () => {
     })
 
     expect(saveDocumentDraft(createDraft(), storage)).toBe(false)
+  })
+
+  it('keeps one draft per tab and lists the newest first', () => {
+    const storage = createStorage()
+    saveDocumentDraft(createDraft({ id: 'tab-a', content: '# A', updatedAt: now - 1000 }), storage)
+    saveDocumentDraft(createDraft({ id: 'tab-b', content: '# B', updatedAt: now }), storage)
+
+    expect(loadDocumentDrafts(storage, now).map((draft) => draft.id)).toEqual(['tab-b', 'tab-a'])
+    expect(loadDocumentDraft(storage, now)?.id).toBe('tab-b')
+
+    clearDocumentDraft('tab-b', storage)
+    expect(loadDocumentDrafts(storage, now).map((draft) => draft.id)).toEqual(['tab-a'])
+  })
+
+  it('upgrades a legacy single draft and caps the number of stored drafts', () => {
+    const storage = createStorage()
+    storage.setItem(DOCUMENT_DRAFT_STORAGE_KEY, JSON.stringify(createDraft({ id: 'legacy' })))
+    expect(loadDocumentDraft(storage, now)?.id).toBe('legacy')
+
+    for (let index = 0; index < DOCUMENT_DRAFT_MAX_ENTRIES + 5; index += 1) {
+      saveDocumentDraft(createDraft({ id: `tab-${index}`, updatedAt: now + index }), storage)
+    }
+
+    const drafts = loadDocumentDrafts(storage, now)
+    expect(drafts).toHaveLength(DOCUMENT_DRAFT_MAX_ENTRIES)
+    expect(drafts[0].id).toBe(`tab-${DOCUMENT_DRAFT_MAX_ENTRIES + 4}`)
   })
 })
 

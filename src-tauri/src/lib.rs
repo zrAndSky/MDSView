@@ -19,12 +19,9 @@ use base64::{engine::general_purpose, Engine as _};
 use docx_import::DocxImportRegistry;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
-
-#[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
-use tauri::Emitter;
 
 const FILE_ACCESS_POLICY_FILENAME: &str = "approved-markdown-files.json";
 const FILE_ACCESS_DENIED: &str =
@@ -42,7 +39,7 @@ use fs_utils::{
 use image_utils::{
     create_image_asset_file, image_extension_for_mime_type, sanitize_image_filename_stem,
 };
-use startup::collect_opened_files_from_args;
+use startup::{collect_opened_files_from, collect_opened_files_from_args};
 use system_fonts::list_system_font_families;
 
 struct OpenedFiles(Mutex<Vec<PathBuf>>);
@@ -207,7 +204,7 @@ async fn open_markdown_file_dialog(
     let selected = app
         .dialog()
         .file()
-        .add_filter("Markdown", &["md", "markdown", "mdown", "mkdn"])
+        .add_filter("Markdown & Text", &["md", "markdown", "mdown", "mkdn", "txt"])
         .blocking_pick_file();
     let Some(path) = selected else {
         return Ok(None);
@@ -229,7 +226,7 @@ async fn pick_markdown_files(app: AppHandle) -> Result<Vec<String>, String> {
     let selected = app
         .dialog()
         .file()
-        .add_filter("Markdown", &["md", "markdown", "mdown", "mkdn"])
+        .add_filter("Markdown & Text", &["md", "markdown", "mdown", "mkdn", "txt"])
         .blocking_pick_files();
     let Some(entries) = selected else {
         return Ok(Vec::new());
@@ -360,7 +357,7 @@ async fn save_markdown_file_dialog(
     let dialog = configure_default_path(
         app.dialog()
             .file()
-            .add_filter("Markdown", &["md", "markdown", "mdown", "mkdn"]),
+            .add_filter("Markdown & Text", &["md", "markdown", "mdown", "mkdn", "txt"]),
         Path::new(&default_path),
     );
     let Some(path) = dialog.blocking_save_file() else {
@@ -640,7 +637,23 @@ fn open_export_result(app: AppHandle, exported: State<'_, ExportedFiles>, path: 
 pub fn run() {
     let startup_files = collect_opened_files_from_args();
     let startup_files_for_policy = startup_files.clone();
-    let builder = tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    // Must stay the first plugin: on Windows it decides whether this process is
+    // the primary instance, and forwards file arguments to the running one.
+    // The plugin is desktop-only, so mobile builds simply skip it.
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            let files = collect_opened_files_from(argv.into_iter().skip(1));
+            if !files.is_empty() {
+                push_opened_files(app, files);
+            }
+            focus_main_window(app);
+        }));
+    }
+
+    let builder = builder
         .manage(OpenedFiles(Mutex::new(startup_files)))
         .manage(ExportedFiles::default())
         .manage(DocxImportRegistry::default())
@@ -801,7 +814,6 @@ fn normalize_path_for_policy(path: &Path) -> Result<PathBuf, String> {
     Ok(parent.join(file_name))
 }
 
-#[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
 fn push_opened_files(app: &AppHandle, files: Vec<PathBuf>) {
     let authorized_files = if let Some(policy) = app.try_state::<FileAccessPolicy>() {
         let authorized = files
@@ -832,6 +844,15 @@ fn push_opened_files(app: &AppHandle, files: Vec<PathBuf>) {
     }
 
     let _ = app.emit("opened-files", payload);
+}
+
+#[cfg(desktop)]
+fn focus_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
 }
 
 #[cfg(test)]

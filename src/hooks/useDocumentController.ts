@@ -7,6 +7,11 @@ import {
   type RecoverableDraft,
 } from '../domain/documentDraft'
 import {
+  createDocumentTab,
+  findTabByPath,
+  type DocumentTab,
+} from '../domain/documentTab'
+import {
   createInitialDocument,
   createImportedDocument,
   markDocumentSaved,
@@ -22,15 +27,13 @@ import {
   saveRecentFiles,
 } from '../domain/recentFiles'
 import type { FileAccess, OpenedMarkdownFile } from '../platform/fileAccess'
+import { useDocumentTabs } from './useDocumentTabs'
 import { useExternalFileMonitor } from './useExternalFileMonitor'
-
-type ExternalFileState =
-  | { kind: 'conflict'; file: OpenedMarkdownFile }
-  | { kind: 'missing'; path: string }
 
 type DocumentViewMode = 'preview' | 'edit'
 
 type UseDocumentControllerOptions = {
+  tabs: ReturnType<typeof useDocumentTabs>
   fileAccess: FileAccess
   recentFileOpenFailedMessage: string
   fileOperationFailedMessage: string
@@ -46,7 +49,11 @@ type UseDocumentControllerOptions = {
 
 const DRAFT_SAVE_DELAY_MS = 750
 
+/** Used only when no tab is open; never mutated. */
+const EMPTY_DOCUMENT: MarkdownDocument = createInitialDocument()
+
 export function useDocumentController({
+  tabs,
   fileAccess,
   recentFileOpenFailedMessage,
   fileOperationFailedMessage,
@@ -59,36 +66,57 @@ export function useDocumentController({
   onCloseMenu,
   onViewModeChange,
 }: UseDocumentControllerOptions) {
-  const [markdownDocument, setMarkdownDocument] = useState(createInitialDocument)
-  const [statusMessage, setStatusMessage] = useState<'saved' | 'opened' | string>('saved')
+  const { state, stateRef, activeId, activeTab, actions } = tabs
+
+  const markdownDocument = activeTab?.document ?? EMPTY_DOCUMENT
+  const isSaving = activeTab?.isSaving ?? false
+  const externalFileState = activeTab?.externalFileState ?? null
+  const isWelcomeVisible = state.tabs.length === 0
+  const documentSessionId = activeId ?? ''
+
   const [recentFiles, setRecentFiles] = useState(loadRecentFiles)
-  const [isWelcomeVisible, setIsWelcomeVisible] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
+  const [fallbackStatusMessage, setFallbackStatusMessage] = useState<string>('saved')
   const [pendingDraft, setPendingDraft] = useState<RecoverableDraft | null>(loadDocumentDraft)
   const [isStartupResolved, setIsStartupResolved] = useState(false)
-  const [externalFileState, setExternalFileState] = useState<ExternalFileState | null>(null)
   const [failedRecentPaths, setFailedRecentPaths] = useState<string[]>([])
   const [pendingUnsavedTitle, setPendingUnsavedTitle] = useState<string | null>(null)
+
   const unsavedResolverRef = useRef<((result: boolean) => void) | null>(null)
-  const saveOperationRef = useRef<Promise<string | null> | null>(null)
-  const documentRef = useRef(markdownDocument)
-  const [documentSessionId, setDocumentSessionId] = useState(createDocumentDraftId)
-  const sessionIdRef = useRef(documentSessionId)
-  const backupFailureNotifiedRef = useRef(false)
+  const saveOperationsRef = useRef(new Map<string, Promise<string | null>>())
+  const backupFailureNotifiedRef = useRef(new Set<string>())
+  const activeIdRef = useRef(activeId)
 
   useLayoutEffect(() => {
-    documentRef.current = markdownDocument
-  }, [markdownDocument])
+    activeIdRef.current = activeId
+  }, [activeId])
 
-  const canDiscardUnsavedChanges = useCallback(async (): Promise<boolean> => {
-    if (!documentRef.current.isDirty) return true
-    if (unsavedResolverRef.current) return false
-    onCloseMenu()
-    setPendingUnsavedTitle(documentRef.current.title)
-    return new Promise<boolean>((resolve) => { unsavedResolverRef.current = resolve })
-  }, [onCloseMenu])
+  const statusMessage = activeTab?.statusMessage ?? fallbackStatusMessage
 
-  useEffect(() => () => { unsavedResolverRef.current?.(false) }, [])
+  const setStatusMessage = useCallback((message: string) => {
+    const tabId = activeIdRef.current
+    if (tabId) {
+      actions.patch(tabId, { statusMessage: message })
+      return
+    }
+    setFallbackStatusMessage(message)
+  }, [actions])
+
+  const findDocument = useCallback((tabId: string): MarkdownDocument | null => {
+    return stateRef.current.tabs.find((tab) => tab.id === tabId)?.document ?? null
+  }, [stateRef])
+
+  const currentDocument = useCallback((): MarkdownDocument => {
+    const tabId = activeIdRef.current
+    return (tabId ? findDocument(tabId) : null) ?? EMPTY_DOCUMENT
+  }, [findDocument])
+
+  const patchTab = useCallback((tabId: string, patch: Parameters<typeof actions.patch>[1]) => {
+    actions.patch(tabId, patch)
+  }, [actions])
+
+  const updateTabDocument = useCallback((tabId: string, update: (document: MarkdownDocument) => MarkdownDocument) => {
+    actions.updateDocument(tabId, update)
+  }, [actions])
 
   const rememberRecentFile = useCallback((path: string) => {
     setRecentFiles((currentFiles) => {
@@ -107,50 +135,70 @@ export function useDocumentController({
     })
   }, [])
 
-  const startDraftSession = useCallback((id = createDocumentDraftId()) => {
-    sessionIdRef.current = id
-    setDocumentSessionId(id)
-    backupFailureNotifiedRef.current = false
+  const clearDraft = useCallback((tabId: string) => {
+    clearDocumentDraft(tabId)
   }, [])
 
-  const clearCurrentDraft = useCallback(() => {
-    clearDocumentDraft(sessionIdRef.current)
-  }, [])
+  const canDiscardUnsavedChanges = useCallback(async (): Promise<boolean> => {
+    if (!currentDocument().isDirty) return true
+    if (unsavedResolverRef.current) return false
+    onCloseMenu()
+    setPendingUnsavedTitle(currentDocument().title)
+    return new Promise<boolean>((resolve) => { unsavedResolverRef.current = resolve })
+  }, [currentDocument, onCloseMenu])
 
-  const loadFile = useCallback((file: OpenedMarkdownFile, discardCurrentDraft = false) => {
-    if (discardCurrentDraft) {
-      clearCurrentDraft()
+  useEffect(() => () => { unsavedResolverRef.current?.(false) }, [])
+
+  /**
+   * Opens a file in its own tab. An already open document is activated instead
+   * of duplicated, so revisions for the same path never fight each other.
+   */
+  const openFileInNewTab = useCallback((file: OpenedMarkdownFile) => {
+    const existing = findTabByPath(stateRef.current, file.path)
+    if (existing) {
+      clearDraft(existing.id)
+      updateTabDocument(existing.id, (document) => replaceDocumentContent(
+        document,
+        file.content,
+        file.path,
+        file.revision ?? null,
+      ))
+      patchTab(existing.id, { externalFileState: null, statusMessage: 'opened' })
+      actions.activate(existing.id)
+      rememberRecentFile(file.path)
+      setFailedRecentPaths((paths) => paths.filter((path) => path !== file.path))
+      return existing.id
     }
 
-    startDraftSession()
-    setMarkdownDocument((current) => replaceDocumentContent(current, file.content, file.path, file.revision))
-    setExternalFileState(null)
-    setIsWelcomeVisible(false)
+    const tab = createDocumentTab(
+      createDocumentDraftId(),
+      replaceDocumentContent(EMPTY_DOCUMENT, file.content, file.path, file.revision ?? null),
+    )
+    actions.add({ ...tab, statusMessage: 'opened' })
     onViewModeChange('preview')
-    setStatusMessage('opened')
     rememberRecentFile(file.path)
     setFailedRecentPaths((paths) => paths.filter((path) => path !== file.path))
-  }, [clearCurrentDraft, onViewModeChange, rememberRecentFile, startDraftSession])
+    return tab.id
+  }, [actions, clearDraft, onViewModeChange, patchTab, rememberRecentFile, stateRef, updateTabDocument])
 
-  const persistCurrentDraft = useCallback(() => {
-    const document = documentRef.current
-    if (!isStartupResolved || pendingDraft || !document.isDirty) {
+  const persistDraftFor = useCallback((tab: DocumentTab) => {
+    if (!isStartupResolved || pendingDraft || !tab.document.isDirty) {
       return
     }
 
     const saved = saveDocumentDraft({
-      id: sessionIdRef.current,
-      path: document.path,
-      title: document.title,
-      content: document.content,
+      id: tab.id,
+      path: tab.document.path,
+      title: tab.document.title,
+      content: tab.document.content,
       updatedAt: Date.now(),
     })
 
-    if (!saved && !backupFailureNotifiedRef.current) {
-      backupFailureNotifiedRef.current = true
-      setStatusMessage(draftBackupFailedMessage)
+    if (!saved && !backupFailureNotifiedRef.current.has(tab.id)) {
+      backupFailureNotifiedRef.current.add(tab.id)
+      patchTab(tab.id, { statusMessage: draftBackupFailedMessage })
     }
-  }, [draftBackupFailedMessage, isStartupResolved, pendingDraft])
+  }, [draftBackupFailedMessage, isStartupResolved, patchTab, pendingDraft])
 
   useEffect(() => {
     let disposed = false
@@ -161,7 +209,7 @@ export function useDocumentController({
         const startupFile = await fileAccess.readStartupMarkdownFile()
         if (!disposed && startupFile) {
           // A file explicitly passed by the operating system takes priority over an older draft.
-          loadFile(startupFile)
+          openFileInNewTab(startupFile)
           setPendingDraft(null)
         }
       } finally {
@@ -171,7 +219,8 @@ export function useDocumentController({
       }
 
       const dispose = await fileAccess.listenForOpenedFiles(async (file) => {
-        if (await canDiscardUnsavedChanges()) loadFile(file, true)
+        // Opening from the shell never touches the documents already open.
+        openFileInNewTab(file)
       })
       if (disposed) {
         dispose?.()
@@ -187,50 +236,64 @@ export function useDocumentController({
       disposed = true
       unlisten?.()
     }
-  }, [canDiscardUnsavedChanges, fileAccess, loadFile])
+  }, [fileAccess, openFileInNewTab])
 
   const checkCurrentFile = useCallback(async (manual = false) => {
-    const current = documentRef.current
-    if (!fileAccess.supportsNativeFiles || !fileAccess.checkMarkdownFile || !current.path || !current.savedRevision) {
+    const tabId = activeIdRef.current
+    const current = currentDocument()
+    if (!tabId || !fileAccess.supportsNativeFiles || !fileAccess.checkMarkdownFile || !current.path || !current.savedRevision) {
       return
     }
 
     try {
       const result = await fileAccess.checkMarkdownFile(current.path, current.savedRevision)
-      const latest = documentRef.current
-      if (latest.path !== current.path || latest.savedRevision !== current.savedRevision) {
+      // The user may have switched tabs while the disk read was in flight.
+      if (activeIdRef.current !== tabId) {
+        return
+      }
+      const latest = findDocument(tabId)
+      if (!latest || latest.path !== current.path || latest.savedRevision !== current.savedRevision) {
         return
       }
 
       if (result.status === 'missing') {
-        setExternalFileState({ kind: 'missing', path: result.path })
-        setStatusMessage(externalFileMissingMessage)
+        patchTab(tabId, { externalFileState: { kind: 'missing', path: result.path }, statusMessage: externalFileMissingMessage })
       } else if (result.status === 'changed') {
         if (latest.isDirty && latest.content !== result.file.content) {
-          setExternalFileState({ kind: 'conflict', file: result.file })
-          setStatusMessage(externalFileConflictMessage)
+          patchTab(tabId, { externalFileState: { kind: 'conflict', file: result.file }, statusMessage: externalFileConflictMessage })
         } else {
-          setMarkdownDocument((document) => replaceDocumentContent(document, result.file.content, result.file.path, result.file.revision))
-          clearCurrentDraft()
-          setExternalFileState(null)
-          setStatusMessage(externalFileUpdatedMessage)
+          updateTabDocument(tabId, (document) => replaceDocumentContent(document, result.file.content, result.file.path, result.file.revision))
+          clearDraft(tabId)
+          patchTab(tabId, { externalFileState: null, statusMessage: externalFileUpdatedMessage })
         }
       } else {
         if (manual) {
-          setStatusMessage(fileUpToDateMessage)
+          patchTab(tabId, { statusMessage: fileUpToDateMessage })
         }
-        setExternalFileState((state) => {
-          if (state?.kind !== 'missing') return state
-          if (!manual) {
-            setStatusMessage(latest.isDirty ? 'unsaved' : 'saved')
-          }
-          return null
-        })
+        const externalState = stateRef.current.tabs.find((tab) => tab.id === tabId)?.externalFileState
+        if (externalState?.kind === 'missing') {
+          patchTab(tabId, {
+            externalFileState: null,
+            statusMessage: manual ? fileUpToDateMessage : (latest.isDirty ? 'unsaved' : 'saved'),
+          })
+        }
       }
     } catch {
       // Temporary filesystem failures should not interrupt reading or editing.
     }
-  }, [clearCurrentDraft, externalFileConflictMessage, externalFileMissingMessage, externalFileUpdatedMessage, fileAccess, fileUpToDateMessage])
+  }, [
+    clearDraft,
+    currentDocument,
+    externalFileConflictMessage,
+    externalFileMissingMessage,
+    externalFileUpdatedMessage,
+    fileAccess,
+    fileUpToDateMessage,
+    findDocument,
+    patchTab,
+    stateRef,
+    updateTabDocument,
+  ])
 
   useExternalFileMonitor({
     enabled: isStartupResolved && fileAccess.supportsNativeFiles,
@@ -244,141 +307,147 @@ export function useDocumentController({
     window.document.title = `${markdownDocument.isDirty ? '* ' : ''}${markdownDocument.title} - MDSView`
   }, [markdownDocument.isDirty, markdownDocument.title])
 
+  // Debounced draft backup for the active tab.
   useEffect(() => {
-    if (!isStartupResolved || pendingDraft || !markdownDocument.isDirty) {
+    if (!isStartupResolved || pendingDraft || !activeTab || !activeTab.document.isDirty) {
       return
     }
 
-    const timeout = window.setTimeout(persistCurrentDraft, DRAFT_SAVE_DELAY_MS)
+    const tab = activeTab
+    const timeout = window.setTimeout(() => persistDraftFor(tab), DRAFT_SAVE_DELAY_MS)
     return () => window.clearTimeout(timeout)
-  }, [isStartupResolved, markdownDocument.content, markdownDocument.isDirty, pendingDraft, persistCurrentDraft])
+  }, [activeTab, isStartupResolved, pendingDraft, persistDraftFor])
+
+  // Flush the outgoing tab as soon as the user switches away from it.
+  const previousActiveIdRef = useRef(activeId)
+  useEffect(() => {
+    const previousId = previousActiveIdRef.current
+    if (previousId === activeId) {
+      return
+    }
+
+    previousActiveIdRef.current = activeId
+    if (!previousId || !isStartupResolved || pendingDraft) {
+      return
+    }
+
+    const previous = stateRef.current.tabs.find((tab) => tab.id === previousId)
+    if (previous) {
+      persistDraftFor(previous)
+    }
+  }, [activeId, isStartupResolved, pendingDraft, persistDraftFor, stateRef])
 
   useEffect(() => {
-    function flushDraft() {
-      persistCurrentDraft()
+    function flushAllDrafts() {
+      for (const tab of stateRef.current.tabs) {
+        persistDraftFor(tab)
+      }
     }
 
     function handleVisibilityChange() {
       if (document.visibilityState === 'hidden') {
-        flushDraft()
+        flushAllDrafts()
       }
     }
 
-    window.addEventListener('pagehide', flushDraft)
+    window.addEventListener('pagehide', flushAllDrafts)
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
-      window.removeEventListener('pagehide', flushDraft)
+      window.removeEventListener('pagehide', flushAllDrafts)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      flushDraft()
+      flushAllDrafts()
     }
-  }, [persistCurrentDraft])
+  }, [persistDraftFor, stateRef])
 
   const handleNewDocument = useCallback(async () => {
-    if (documentRef.current.isDirty && !await canDiscardUnsavedChanges()) {
-      return
-    }
-
     onCloseMenu()
-    clearCurrentDraft()
-    startDraftSession()
-    setIsWelcomeVisible(false)
-    setMarkdownDocument(createInitialDocument())
+    actions.add(createDocumentTab(createDocumentDraftId(), createInitialDocument()))
     onViewModeChange('edit')
-    setStatusMessage('saved')
-  }, [canDiscardUnsavedChanges, clearCurrentDraft, onCloseMenu, onViewModeChange, startDraftSession])
+  }, [actions, onCloseMenu, onViewModeChange])
 
   const handleOpenFile = useCallback(async () => {
-    if (documentRef.current.isDirty && !await canDiscardUnsavedChanges()) {
-      return
-    }
-
     onCloseMenu()
 
     try {
       const file = await fileAccess.openMarkdownFile()
       if (file) {
-        loadFile(file, true)
+        openFileInNewTab(file)
       }
     } catch (error) {
       setStatusMessage(getErrorMessage(error, fileOperationFailedMessage))
     }
-  }, [canDiscardUnsavedChanges, fileAccess, fileOperationFailedMessage, loadFile, onCloseMenu])
+  }, [fileAccess, fileOperationFailedMessage, onCloseMenu, openFileInNewTab, setStatusMessage])
 
-  const handleImportedDocument = useCallback((content: string, suggestedFilename: string) => {
-    clearCurrentDraft()
-    startDraftSession()
-    setMarkdownDocument(createImportedDocument(content, suggestedFilename))
-    setExternalFileState(null)
-    setIsWelcomeVisible(false)
+  const handleImportedDocument = useCallback((content: string, suggestedFilename: string, statusMessage = 'unsaved') => {
+    const tab = createDocumentTab(createDocumentDraftId(), createImportedDocument(content, suggestedFilename))
+    actions.add({ ...tab, statusMessage })
     onViewModeChange('preview')
-    setStatusMessage('unsaved')
-  }, [clearCurrentDraft, onViewModeChange, startDraftSession])
+  }, [actions, onViewModeChange])
 
   const handleOpenRecentFile = useCallback(async (path: string) => {
-    if (documentRef.current.isDirty && !await canDiscardUnsavedChanges()) {
-      return
-    }
-
     onCloseMenu()
 
     try {
-      loadFile(await fileAccess.openMarkdownFileAtPath(path), true)
+      openFileInNewTab(await fileAccess.openMarkdownFileAtPath(path))
     } catch {
       setFailedRecentPaths((paths) => paths.includes(path) ? paths : [...paths, path])
       setStatusMessage(recentFileOpenFailedMessage)
     }
-  }, [canDiscardUnsavedChanges, fileAccess, loadFile, onCloseMenu, recentFileOpenFailedMessage])
+  }, [fileAccess, onCloseMenu, openFileInNewTab, recentFileOpenFailedMessage, setStatusMessage])
 
   const openMarkdownLinkFile = useCallback(async (path: string): Promise<boolean> => {
-    if (documentRef.current.isDirty && !await canDiscardUnsavedChanges()) {
-      return false
-    }
-
     try {
-      loadFile(await fileAccess.openMarkdownFileAtPath(path), true)
+      openFileInNewTab(await fileAccess.openMarkdownFileAtPath(path))
       return true
     } catch (error) {
       setStatusMessage(getErrorMessage(error, fileOperationFailedMessage))
       return false
     }
-  }, [canDiscardUnsavedChanges, fileAccess, fileOperationFailedMessage, loadFile])
+  }, [fileAccess, fileOperationFailedMessage, openFileInNewTab, setStatusMessage])
 
   const handleLocateRecentFile = useCallback(async (previousPath: string) => {
-    if (documentRef.current.isDirty && !await canDiscardUnsavedChanges()) return
     onCloseMenu()
     try {
       const file = await fileAccess.openMarkdownFile()
       if (!file) return
-      loadFile(file, true)
+      openFileInNewTab(file)
       if (file.path !== previousPath) forgetRecentFile(previousPath)
     } catch { setStatusMessage(recentFileOpenFailedMessage) }
-  }, [canDiscardUnsavedChanges, fileAccess, forgetRecentFile, loadFile, onCloseMenu, recentFileOpenFailedMessage])
+  }, [fileAccess, forgetRecentFile, onCloseMenu, openFileInNewTab, recentFileOpenFailedMessage, setStatusMessage])
 
-  const saveDocument = useCallback((forceSaveAs = false): Promise<string | null> => {
-    const existingOperation = saveOperationRef.current
+  const saveDocument = useCallback((forceSaveAs = false, targetTabId = activeIdRef.current): Promise<string | null> => {
+    if (!targetTabId) {
+      return Promise.resolve(null)
+    }
+
+    const existingOperation = saveOperationsRef.current.get(targetTabId)
     if (existingOperation && !forceSaveAs) {
       return existingOperation
     }
 
     const runSave = async (): Promise<string | null> => {
+      const document = findDocument(targetTabId)
+      if (!document) {
+        return null
+      }
+
       try {
-        const currentPath = markdownDocument.path
-        const contentToSave = markdownDocument.content
+        const currentPath = document.path
+        const contentToSave = document.content
         const isSaveAs = forceSaveAs || !currentPath
-        const defaultPath = currentPath ?? (markdownDocument.title !== 'Untitled.md'
-          ? markdownDocument.title
+        const defaultPath = currentPath ?? (document.title !== 'Untitled.md'
+          ? document.title
           : (await import('../domain/markdownFilename')).createMarkdownSuggestedFilename(contentToSave))
         const savedResult = isSaveAs
           ? await fileAccess.saveMarkdownFileAs(contentToSave, defaultPath)
-          : markdownDocument.savedRevision
-            ? await fileAccess.saveMarkdownFile(currentPath, contentToSave, markdownDocument.savedRevision)
+          : document.savedRevision
+            ? await fileAccess.saveMarkdownFile(currentPath, contentToSave, document.savedRevision)
             : await fileAccess.saveMarkdownFile(currentPath, contentToSave)
 
         if (typeof savedResult === 'string') {
-          clearCurrentDraft()
-          setMarkdownDocument((current) => markDocumentSaved(current, savedResult, contentToSave, current.savedRevision))
-          setExternalFileState(null)
-          setStatusMessage('saved')
+          clearDraft(targetTabId)
+          updateTabDocument(targetTabId, (current) => markDocumentSaved(current, savedResult, contentToSave, current.savedRevision))
+          patchTab(targetTabId, { externalFileState: null, statusMessage: 'saved' })
           if (isSaveAs) rememberRecentFile(savedResult)
           return savedResult
         }
@@ -387,11 +456,9 @@ export function useDocumentController({
         if (structuredResult && ((isSaveAs && 'revision' in structuredResult) || (!isSaveAs && 'status' in structuredResult && (structuredResult as import('../platform/fileAccess').MarkdownFileSaveResult).status === 'saved'))) {
           const completed = structuredResult as { path: string; revision: string }
           const savedPath = completed.path
-          const savedRevision = completed.revision
-          clearCurrentDraft()
-          setMarkdownDocument((current) => markDocumentSaved(current, savedPath, contentToSave, savedRevision))
-          setExternalFileState(null)
-          setStatusMessage('saved')
+          clearDraft(targetTabId)
+          updateTabDocument(targetTabId, (current) => markDocumentSaved(current, savedPath, contentToSave, completed.revision))
+          patchTab(targetTabId, { externalFileState: null, statusMessage: 'saved' })
           if (isSaveAs) {
             rememberRecentFile(savedPath)
           }
@@ -399,15 +466,13 @@ export function useDocumentController({
         }
         if (savedResult && !isSaveAs && 'status' in savedResult) {
           if (savedResult.status === 'conflict') {
-            setExternalFileState({ kind: 'conflict', file: savedResult.file })
-            setStatusMessage(externalFileSaveBlockedMessage)
+            patchTab(targetTabId, { externalFileState: { kind: 'conflict', file: savedResult.file }, statusMessage: externalFileSaveBlockedMessage })
           } else if (savedResult.status === 'missing') {
-            setExternalFileState({ kind: 'missing', path: savedResult.path })
-            setStatusMessage(externalFileMissingMessage)
+            patchTab(targetTabId, { externalFileState: { kind: 'missing', path: savedResult.path }, statusMessage: externalFileMissingMessage })
           }
         }
       } catch (error) {
-        setStatusMessage(getErrorMessage(error, fileOperationFailedMessage))
+        patchTab(targetTabId, { statusMessage: getErrorMessage(error, fileOperationFailedMessage) })
       }
 
       return null
@@ -416,16 +481,16 @@ export function useDocumentController({
     const operation = existingOperation
       ? existingOperation.then(() => runSave())
       : runSave()
-    saveOperationRef.current = operation
-    setIsSaving(true)
+    saveOperationsRef.current.set(targetTabId, operation)
+    patchTab(targetTabId, { isSaving: true })
     void operation.finally(() => {
-      if (saveOperationRef.current === operation) {
-        saveOperationRef.current = null
-        setIsSaving(false)
+      if (saveOperationsRef.current.get(targetTabId) === operation) {
+        saveOperationsRef.current.delete(targetTabId)
+        patchTab(targetTabId, { isSaving: false })
       }
     })
     return operation
-  }, [clearCurrentDraft, externalFileMissingMessage, externalFileSaveBlockedMessage, fileAccess, fileOperationFailedMessage, markdownDocument.content, markdownDocument.path, markdownDocument.savedRevision, markdownDocument.title, rememberRecentFile])
+  }, [clearDraft, externalFileMissingMessage, externalFileSaveBlockedMessage, fileAccess, fileOperationFailedMessage, findDocument, patchTab, rememberRecentFile, updateTabDocument])
 
   const handleSaveFile = useCallback(async (): Promise<boolean> => {
     onCloseMenu()
@@ -434,7 +499,7 @@ export function useDocumentController({
       return false
     }
     return Boolean(await saveDocument())
-  }, [externalFileSaveBlockedMessage, externalFileState, onCloseMenu, saveDocument])
+  }, [externalFileSaveBlockedMessage, externalFileState, onCloseMenu, saveDocument, setStatusMessage])
 
   const resolveUnsavedChanges = useCallback(async (choice: 'save' | 'discard' | 'cancel') => {
     const resolver = unsavedResolverRef.current
@@ -446,21 +511,23 @@ export function useDocumentController({
   }, [handleSaveFile, isSaving])
 
   const handleKeepLocalEdits = useCallback(() => {
-    if (externalFileState?.kind !== 'conflict') return
-    const external = externalFileState.file
-    setMarkdownDocument((current) => markDocumentSaved(current, external.path, external.content, external.revision))
-    setExternalFileState(null)
-    setStatusMessage('unsaved')
-  }, [externalFileState])
+    const tabId = activeIdRef.current
+    const conflict = tabId ? stateRef.current.tabs.find((tab) => tab.id === tabId)?.externalFileState : null
+    if (!tabId || conflict?.kind !== 'conflict') return
+    const external = conflict.file
+    updateTabDocument(tabId, (current) => markDocumentSaved(current, external.path, external.content, external.revision))
+    patchTab(tabId, { externalFileState: null, statusMessage: 'unsaved' })
+  }, [patchTab, stateRef, updateTabDocument])
 
   const handleReloadDiskVersion = useCallback(() => {
-    if (externalFileState?.kind !== 'conflict') return
-    const external = externalFileState.file
-    clearCurrentDraft()
-    setMarkdownDocument((current) => replaceDocumentContent(current, external.content, external.path, external.revision))
-    setExternalFileState(null)
-    setStatusMessage(externalFileUpdatedMessage)
-  }, [clearCurrentDraft, externalFileState, externalFileUpdatedMessage])
+    const tabId = activeIdRef.current
+    const conflict = tabId ? stateRef.current.tabs.find((tab) => tab.id === tabId)?.externalFileState : null
+    if (!tabId || conflict?.kind !== 'conflict') return
+    const external = conflict.file
+    clearDraft(tabId)
+    updateTabDocument(tabId, (current) => replaceDocumentContent(current, external.content, external.path, external.revision))
+    patchTab(tabId, { externalFileState: null, statusMessage: externalFileUpdatedMessage })
+  }, [clearDraft, externalFileUpdatedMessage, patchTab, stateRef, updateTabDocument])
 
   const handleSaveFileAs = useCallback(async () => {
     onCloseMenu()
@@ -472,22 +539,23 @@ export function useDocumentController({
   }, [markdownDocument.path, saveDocument])
 
   const handleContentChange = useCallback((content: string) => {
-    setIsWelcomeVisible(false)
-    setMarkdownDocument((current) => {
-      const nextDocument = updateDocumentDraft(current, content)
-      setStatusMessage(nextDocument.isDirty ? 'unsaved' : 'saved')
-      return nextDocument
-    })
-  }, [])
+    const tabId = activeIdRef.current
+    if (!tabId) return
+    const document = findDocument(tabId)
+    const isDirty = document ? content !== document.savedContent : true
+    updateTabDocument(tabId, (current) => updateDocumentDraft(current, content))
+    patchTab(tabId, { statusMessage: isDirty ? 'unsaved' : 'saved' })
+  }, [findDocument, patchTab, updateTabDocument])
 
   const transformDocumentContent = useCallback((transform: (content: string) => string) => {
-    setIsWelcomeVisible(false)
-    setMarkdownDocument((current) => {
-      const nextDocument = updateDocumentDraft(current, transform(current.content))
-      setStatusMessage(nextDocument.isDirty ? 'unsaved' : 'saved')
-      return nextDocument
-    })
-  }, [])
+    const tabId = activeIdRef.current
+    if (!tabId) return
+    const document = findDocument(tabId)
+    if (!document) return
+    const nextContent = transform(document.content)
+    updateTabDocument(tabId, (current) => updateDocumentDraft(current, nextContent))
+    patchTab(tabId, { statusMessage: nextContent !== document.savedContent ? 'unsaved' : 'saved' })
+  }, [findDocument, patchTab, updateTabDocument])
 
   const restorePendingDraft = useCallback(async () => {
     const draft = pendingDraft
@@ -496,7 +564,6 @@ export function useDocumentController({
     }
 
     setPendingDraft(null)
-    startDraftSession(draft.id)
 
     let restoredDocument: MarkdownDocument
     if (draft.path) {
@@ -514,14 +581,13 @@ export function useDocumentController({
       restoredDocument = updateDocumentDraft(createInitialDocument(), draft.content)
     }
 
-    setMarkdownDocument(restoredDocument)
-    setIsWelcomeVisible(false)
+    // Reuse the draft id so the restored tab keeps backing up to the same slot.
+    actions.add({ ...createDocumentTab(draft.id, restoredDocument), statusMessage: restoredDocument.isDirty ? 'unsaved' : 'saved' })
     onViewModeChange('edit')
-    setStatusMessage(restoredDocument.isDirty ? 'unsaved' : 'saved')
     if (!restoredDocument.isDirty) {
-      clearCurrentDraft()
+      clearDraft(draft.id)
     }
-  }, [clearCurrentDraft, fileAccess, onViewModeChange, pendingDraft, rememberRecentFile, startDraftSession])
+  }, [actions, clearDraft, fileAccess, onViewModeChange, pendingDraft, rememberRecentFile])
 
   const discardPendingDraft = useCallback(() => {
     if (!pendingDraft) {
@@ -529,9 +595,8 @@ export function useDocumentController({
     }
 
     clearDocumentDraft(pendingDraft.id)
-    startDraftSession()
     setPendingDraft(null)
-  }, [pendingDraft, startDraftSession])
+  }, [pendingDraft])
 
   const handleClearRecentFiles = useCallback(() => {
     clearRecentFiles()

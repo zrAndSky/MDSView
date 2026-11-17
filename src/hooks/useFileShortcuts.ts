@@ -14,6 +14,9 @@ type UseFileShortcutsOptions = {
   onSaveAs: () => void | Promise<void>
   onSaveSuccess: () => void
   onRefresh?: () => void
+  onCloseTab?: () => void
+  onNextTab?: () => void
+  onPreviousTab?: () => void
 }
 
 export function useFileShortcuts(options: UseFileShortcutsOptions): ShortcutPlatform {
@@ -26,6 +29,26 @@ export function useFileShortcuts(options: UseFileShortcutsOptions): ShortcutPlat
       }
       options.onCloseMenu()
       options.onRefresh?.()
+      return
+    }
+
+    const isCloseTabShortcut = matchesShortcut(event, { key: 'w' }, platform)
+    const isNextTabShortcut = matchesShortcut(event, { key: 'tab' }, platform)
+    const isPreviousTabShortcut = matchesShortcut(event, { key: 'tab', shiftKey: true }, platform)
+
+    if (isCloseTabShortcut || isNextTabShortcut || isPreviousTabShortcut) {
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) {
+        return
+      }
+      event.preventDefault()
+      options.onCloseMenu()
+      if (isCloseTabShortcut) {
+        options.onCloseTab?.()
+      } else if (isPreviousTabShortcut) {
+        options.onPreviousTab?.()
+      } else {
+        options.onNextTab?.()
+      }
       return
     }
 

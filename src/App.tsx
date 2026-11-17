@@ -4,6 +4,7 @@ import { UnsavedChangesDialog } from './components/dialogs/UnsavedChangesDialog'
 import { ExportWarningDialog } from './components/dialogs/ExportWarningDialog'
 import {
   Suspense,
+  lazy,
   use,
   useCallback,
   useEffect,
@@ -20,6 +21,7 @@ import { SplitScrollControl } from './components/workspace/SplitScrollControl'
 import { SplitSwapControl } from './components/workspace/SplitSwapControl'
 import { Toast } from './components/shell/Toast'
 import { AppDialogs } from './components/shell/AppDialogs'
+import { DocumentTabBar } from './components/shell/DocumentTabBar'
 import { AppToolbar } from './components/shell/AppToolbar'
 import { AppLogo } from './components/shell/AppLogo'
 import { DocumentOutline } from './components/workspace/DocumentOutline'
@@ -33,6 +35,8 @@ import { ExternalFileBanner } from './components/workspace/ExternalFileBanner'
 import { ImageImportNotice } from './components/editor/ImageImportNotice'
 import { EditorStatusBar } from './components/editor/EditorStatusBar'
 import { LazyMarkdownPreview, preloadMarkdownPreview } from './components/preview/lazyMarkdownPreview'
+import { PlainTextPreview } from './components/preview/PlainTextPreview'
+import { isPlainTextPath } from './platform/markdownFiles'
 import { MarkdownEditor, type MarkdownEditorHandle } from './components/editor/MarkdownEditor'
 import { WelcomeWorkspace } from './components/workspace/WelcomeWorkspace'
 import {
@@ -53,6 +57,14 @@ import { useSaveOnClose } from './hooks/useSaveOnClose'
 import { useGitHistory } from './hooks/useGitHistory'
 import { useSidePanels } from './hooks/useSidePanels'
 import { useDocumentController } from './hooks/useDocumentController'
+import { useDocumentTabs } from './hooks/useDocumentTabs'
+import { useComparison } from './hooks/useComparison'
+
+// Compare mode is an occasional entry point; keep it out of the startup bundle.
+const LazyCompareWorkspace = lazy(async () => {
+  const { CompareWorkspace } = await import('./components/compare/CompareWorkspace')
+  return { default: CompareWorkspace }
+})
 import { useDocumentSearch } from './hooks/useDocumentSearch'
 import { useImageInsertion } from './hooks/useImageInsertion'
 import { usePreviewController } from './hooks/usePreviewController'
@@ -131,6 +143,7 @@ function AppWorkspace({
     menuBarRef,
     toggleMenu,
   } = useAppMenu()
+  const tabs = useDocumentTabs()
   const {
     showAppToast,
     showPreviewToast,
@@ -170,6 +183,7 @@ function AppWorkspace({
     statusMessage,
     transformDocumentContent,
   } = useDocumentController({
+    tabs,
     fileAccess,
     draftBackupFailedMessage: t.draftBackupFailed,
     externalFileUpdatedMessage: t.externalFileUpdated,
@@ -198,6 +212,17 @@ function AppWorkspace({
     isDirty: markdownDocument.isDirty,
     saveBlocked: externalFileState !== null,
     onSave: handleSaveFile,
+  })
+  const comparison = useComparison({
+    fileAccess,
+    messages: {
+      loadFailed: t.compareLoadFailed,
+      saveFailed: t.compareSaveFailed,
+      saveConflict: t.compareSaveConflict,
+      saveMissing: t.compareSaveMissing,
+      limitReached: t.compareLimit,
+      discardConfirm: t.compareDiscardConfirm,
+    },
   })
   const sidePanels = useSidePanels()
   const playlists = usePlaylists()
@@ -371,16 +396,15 @@ function AppWorkspace({
     try {
       const imported = await importer.importFile()
       if (imported) {
-        handleImportedDocument(imported.content, imported.suggestedFilename)
+        handleImportedDocument(imported.content, imported.suggestedFilename, t.docxImportSuccess)
         setIsDocxImportOpen(false)
-        setStatusMessage(t.docxImportSuccess)
       }
     } catch (error) {
       setDocxImportStatus({ state: 'componentsBroken', canInstallPython: false, message: getErrorMessage(error) })
     } finally {
       setDocxImportPhase('idle')
     }
-  }, [canDiscardUnsavedChanges, fileAccess.docxImport, handleImportedDocument, setStatusMessage, t.docxImportSuccess])
+  }, [canDiscardUnsavedChanges, fileAccess.docxImport, handleImportedDocument, t.docxImportSuccess])
   const handleNewDocumentWithPreviewPreload = useCallback(() => {
     preloadMarkdownPreview()
     return handleNewDocument()
@@ -410,6 +434,24 @@ function AppWorkspace({
     releaseOpenFailedMessage: t.updateReleaseOpenFailed,
     unsupportedMessage: t.updateUnavailable,
   })
+  const handleCloseTab = useCallback((id: string | null) => {
+    if (!id) return
+    const tab = tabs.stateRef.current.tabs.find((item) => item.id === id)
+    if (!tab) return
+    if (tab.document.isDirty && !window.confirm(t.closeTabConfirm(tab.document.title))) {
+      return
+    }
+    tabs.actions.close(id)
+  }, [t, tabs.actions, tabs.stateRef])
+
+  const cycleTab = useCallback((delta: number) => {
+    const list = tabs.stateRef.current.tabs
+    if (list.length < 2) return
+    const index = list.findIndex((item) => item.id === tabs.stateRef.current.activeId)
+    const nextIndex = (index + delta + list.length) % list.length
+    tabs.actions.activate(list[nextIndex].id)
+  }, [tabs.actions, tabs.stateRef])
+
   const shortcutPlatform = useFileShortcuts({
     supportsNativeFiles: fileAccess.supportsNativeFiles,
     onCloseMenu: closeMenu,
@@ -419,6 +461,9 @@ function AppWorkspace({
     onSaveAs: handleSaveFileAs,
     onSaveSuccess: () => showAppToast(t.saved),
     onRefresh: () => void refreshFromDisk(),
+    onCloseTab: () => handleCloseTab(tabs.state.activeId),
+    onNextTab: () => cycleTab(1),
+    onPreviousTab: () => cycleTab(-1),
   })
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const skipNextHistorySnapshotRef = useRef(false)
@@ -776,6 +821,15 @@ function AppWorkspace({
   const saveTitle = withShortcutTitle(t.saveLabel, { key: 's' }, shortcutPlatform)
   const saveAsTitle = withShortcutTitle(t.saveAsLabel, { key: 's', shiftKey: true }, shortcutPlatform)
   const previewPanelStyle = { '--preview-zoom': previewZoom } as CSSProperties
+  // Plain-text files are shown verbatim instead of being parsed as Markdown.
+  const isPlainTextDocument = isPlainTextPath(markdownDocument.path)
+  const { open: openComparison } = comparison
+  const handleOpenCompare = useCallback(() => {
+    closeMenu()
+    openComparison(markdownDocument.path
+      ? { path: markdownDocument.path, content: markdownDocument.content, revision: markdownDocument.savedRevision ?? undefined }
+      : null)
+  }, [closeMenu, markdownDocument.content, markdownDocument.path, markdownDocument.savedRevision, openComparison])
   const lineStartOffsets = useMemo(
     () => getLineStartOffsets(markdownDocument.content),
     [markdownDocument.content],
@@ -827,6 +881,7 @@ function AppWorkspace({
         updatePhase={updatePhase}
         viewMode={viewMode}
         windowFrame={windowFrame}
+        compareMode={comparison.isCompareOpen}
         onAbout={handleOpenAboutFromAppMenu}
         onCheckUpdates={() => void handleCheckForUpdates()}
         onClearRecent={handleClearRecentFiles}
@@ -836,6 +891,7 @@ function AppWorkspace({
         onImportDocx={fileAccess.docxImport ? openDocxImport : undefined}
         onLanguage={handleLanguageSelect}
         onNew={handleNewDocumentWithPreviewPreload}
+        onCompare={handleOpenCompare}
         onOpen={() => void handleOpenFileWithPreviewPreload()}
         onOpenRecent={(path) => void handleOpenRecentFileWithPreviewPreload(path)}
         onOpenReadingSettings={handleOpenReadingSettings}
@@ -857,7 +913,54 @@ function AppWorkspace({
         }}
       />
 
-      {isWelcomeVisible ? (
+      {!comparison.isCompareOpen ? (
+        <DocumentTabBar
+          tabs={tabs.tabs}
+          activeId={tabs.activeId}
+          labels={{
+            list: t.tabsList,
+            newTab: t.newTab,
+            closeTab: t.closeTab,
+            unsaved: t.unsaved,
+          }}
+          onSelect={tabs.actions.activate}
+          onClose={handleCloseTab}
+          onNew={() => void handleNewDocumentWithPreviewPreload()}
+        />
+      ) : null}
+
+      {comparison.isCompareOpen ? (
+        <Suspense fallback={<div role="status" style={{ padding: 24, color: 'var(--text-muted)' }}>{t.compareTitle}</div>}>
+        <LazyCompareWorkspace
+          documents={comparison.documents}
+          dirtyCount={comparison.dirtyCount}
+          statusMessage={comparison.statusMessage}
+          theme={effectiveTheme}
+          previewLabels={t.previewLabels}
+          readLocalImageFile={fileAccess.readLocalImageFile}
+          labels={{
+            title: t.compareTitle,
+            add: t.compareAdd,
+            limit: t.compareLimit,
+            saveAll: t.compareSaveAll,
+            exit: t.compareExit,
+            empty: t.compareEmpty,
+            loading: t.previewLoading,
+            panePreview: t.comparePanePreview,
+            paneEdit: t.comparePaneEdit,
+            paneSave: t.compareSavePane,
+            paneRemove: t.compareRemovePane,
+          }}
+          onAdd={() => void comparison.addDocuments()}
+          onRemove={comparison.remove}
+          onModeChange={comparison.setMode}
+          onContentChange={comparison.updateContent}
+          onSave={(id) => void comparison.save(id)}
+          onSaveAll={() => void comparison.saveAll()}
+          onExit={() => comparison.close()}
+        />
+        </Suspense>
+      ) : isWelcomeVisible ? (
         <WelcomeWorkspace
           recentFiles={recentFiles}
           failedRecentPaths={failedRecentPaths}
@@ -958,7 +1061,7 @@ function AppWorkspace({
             label={t.markdownSource}
             placeholder={t.editorPlaceholder}
             t={t}
-            showToolbar={viewMode !== 'preview'}
+            showToolbar={viewMode !== 'preview' && !isPlainTextDocument}
             toolbarEnd={viewMode === 'split' ? (
               <div className="split-toolbar-actions">
                 <SplitSwapControl
@@ -1013,20 +1116,29 @@ function AppWorkspace({
           ref={previewPanelRef}
           style={previewPanelStyle}
         >
-          <Suspense fallback={<PreviewLoading label={t.previewLoading} />}>
-            <LazyMarkdownPreview
+          {isPlainTextDocument ? (
+            <PlainTextPreview
               content={previewContent}
-              theme={effectiveTheme}
               previewRef={previewRef}
-              sourcePath={markdownDocument.path}
-              readLocalImageFile={fileAccess.readLocalImageFile}
-              onOpenMarkdownLink={handleOpenMarkdownLink}
-              labels={t.previewLabels}
-              searchQuery={viewMode === 'preview' ? documentSearch.appliedQuery : ''}
-              activeSearchIndex={documentSearch.activeIndex}
-              onSearchMatchCountChange={documentSearch.setPreviewMatchCount}
+              label={t.previewPanel}
+              emptyLabel={t.editorPlaceholder}
             />
-          </Suspense>
+          ) : (
+            <Suspense fallback={<PreviewLoading label={t.previewLoading} />}>
+              <LazyMarkdownPreview
+                content={previewContent}
+                theme={effectiveTheme}
+                previewRef={previewRef}
+                sourcePath={markdownDocument.path}
+                readLocalImageFile={fileAccess.readLocalImageFile}
+                onOpenMarkdownLink={handleOpenMarkdownLink}
+                labels={t.previewLabels}
+                searchQuery={viewMode === 'preview' ? documentSearch.appliedQuery : ''}
+                activeSearchIndex={documentSearch.activeIndex}
+                onSearchMatchCountChange={documentSearch.setPreviewMatchCount}
+              />
+            </Suspense>
+          )}
           </section>
         </section>
           {rightHasPanels ? (
