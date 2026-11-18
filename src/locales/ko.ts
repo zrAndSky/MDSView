@@ -72,6 +72,7 @@ export const korean: Translation = {
   compareShort: '비교',
   compareDropHint: '여기에 Markdown 또는 텍스트 파일을 놓으면 비교에 추가됩니다.',
   compareDropActive: '놓으면 이 파일들을 비교에 추가합니다.',
+  dropToOpen: '놓으면 새 탭에서 엽니다',
   comparePanePreview: '미리보기',
   comparePaneEdit: '편집',
   compareSavePane: '이 문서 저장',

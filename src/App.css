@@ -1715,6 +1715,21 @@
   height: 28px;
 }
 
+/* Dropping anywhere outside the sidebar opens the files in new tabs. */
+.document-drop-overlay {
+  position: fixed;
+  inset: 10px;
+  z-index: 60;
+  display: grid;
+  place-content: center;
+  border: 3px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: 10px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 84%, transparent);
+  font: 700 15px/1.4 var(--ui-font);
+  pointer-events: none;
+}
+
 .image-import-notice {
   min-height: 38px;
   display: flex;

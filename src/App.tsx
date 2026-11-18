@@ -70,7 +70,7 @@ import { useDocumentSearch } from './hooks/useDocumentSearch'
 import { useImageInsertion } from './hooks/useImageInsertion'
 import { usePreviewController } from './hooks/usePreviewController'
 import { usePlaylists } from './hooks/usePlaylists'
-import { useCollectionsFileDrop } from './hooks/useCollectionsFileDrop'
+import { useFileDropZones } from './hooks/useFileDropZones'
 import { useReadingSession } from './hooks/useReadingSession'
 import { useReadingPreferences } from './hooks/useReadingPreferences'
 import { useTransientToast } from './hooks/useTransientToast'
@@ -173,6 +173,7 @@ function AppWorkspace({
     isWelcomeVisible,
     markdownDocument,
     openMarkdownLinkFile,
+    openPathsInTabs,
     pendingDraft,
     recentFiles,
     restorePendingDraft,
@@ -265,7 +266,10 @@ function AppWorkspace({
   })
   const sidePanels = useSidePanels()
   const playlists = usePlaylists()
-  const [isCollectionsDropTarget, setIsCollectionsDropTarget] = useState(false)
+  const [dropZone, setDropZone] = useState<string | null>(null)
+  const isCollectionsDropTarget = dropZone === 'collections'
+  const isCompareDropTarget = dropZone === 'compare'
+  const isDocumentDropTarget = dropZone === 'document'
   const addPlaylistItems = useCallback((paths: string[]) => {
     if (paths.length === 0) {
       return
@@ -290,18 +294,18 @@ function AppWorkspace({
     }
     addPlaylistItems(await pick())
   }, [addPlaylistItems, fileAccess])
-  const [isCompareDropTarget, setIsCompareDropTarget] = useState(false)
   const addCompareDocuments = comparison.addDocumentPaths
-  useCollectionsFileDrop({
-    enabled: !comparison.isCompareOpen,
-    onDropFiles: addPlaylistItems,
-    onHoverChange: setIsCollectionsDropTarget,
-  })
-  useCollectionsFileDrop({
-    enabled: comparison.isCompareOpen,
-    onDropFiles: (paths) => { void addCompareDocuments(paths) },
-    onHoverChange: setIsCompareDropTarget,
-    panelSelector: '.compare-workspace',
+  // Drop targets, tested in order: compare panes, collections sidebar, then the
+  // window itself (which opens the files in new tabs).
+  useFileDropZones({
+    enabled: true,
+    zones: comparison.isCompareOpen
+      ? [{ key: 'compare', selector: '.compare-workspace', onDrop: (paths: string[]) => { void addCompareDocuments(paths) } }]
+      : [
+          { key: 'collections', selector: '.playlist-panel', onDrop: addPlaylistItems },
+          { key: 'document', selector: '.app-shell', onDrop: (paths: string[]) => { void openPathsInTabs(paths) } },
+        ],
+    onActiveZoneChange: setDropZone,
   })
   const handleOpenPlaylistItem = useCallback((path: string) => {
     void handleOpenRecentFile(path)
@@ -968,6 +972,10 @@ function AppWorkspace({
           onClose={handleCloseTab}
           onNew={() => void handleNewDocumentWithPreviewPreload()}
         />
+      ) : null}
+
+      {isDocumentDropTarget ? (
+        <div className="document-drop-overlay" aria-hidden="true">{t.dropToOpen}</div>
       ) : null}
 
       {comparison.isCompareOpen ? (

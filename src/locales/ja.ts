@@ -72,6 +72,7 @@ export const japanese: Translation = {
   compareShort: '比較',
   compareDropHint: 'ここに Markdown やテキストファイルをドロップすると比較に追加できます。',
   compareDropActive: '離すとこれらのファイルを比較に追加します。',
+  dropToOpen: '離すと新しいタブで開きます',
   comparePanePreview: 'プレビュー',
   comparePaneEdit: '編集',
   compareSavePane: 'この文書を保存',

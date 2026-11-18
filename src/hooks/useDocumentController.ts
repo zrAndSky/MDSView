@@ -384,6 +384,21 @@ export function useDocumentController({
     onViewModeChange('preview')
   }, [actions, onViewModeChange])
 
+  /** Opens each dropped path in its own tab; one bad file does not stop the rest. */
+  const openPathsInTabs = useCallback(async (paths: string[]) => {
+    let failure = ''
+    for (const path of paths) {
+      try {
+        openFileInNewTab(await fileAccess.openMarkdownFileAtPath(path))
+      } catch (error) {
+        failure = getErrorMessage(error, fileOperationFailedMessage)
+      }
+    }
+    if (failure) {
+      setStatusMessage(failure)
+    }
+  }, [fileAccess, fileOperationFailedMessage, openFileInNewTab, setStatusMessage])
+
   const handleOpenRecentFile = useCallback(async (path: string) => {
     onCloseMenu()
 
@@ -637,6 +652,7 @@ export function useDocumentController({
     handleImportedDocument,
     handleOpenFile,
     handleOpenRecentFile,
+    openPathsInTabs,
     handleReloadDiskVersion,
     handleSaveFile,
     handleSaveFileAs,

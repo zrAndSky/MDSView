@@ -72,6 +72,7 @@ export const spanish: Translation = {
   compareShort: 'Comparar',
   compareDropHint: 'Suelta aquí archivos Markdown o de texto para compararlos.',
   compareDropActive: 'Suelta para añadir estos archivos a la comparación.',
+  dropToOpen: 'Suelta para abrir en una pestaña nueva',
   comparePanePreview: 'Vista previa',
   comparePaneEdit: 'Editar',
   compareSavePane: 'Guardar este documento',
