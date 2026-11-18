@@ -17,6 +17,7 @@ type UseFileShortcutsOptions = {
   onCloseTab?: () => void
   onNextTab?: () => void
   onPreviousTab?: () => void
+  onToggleCompare?: () => void
 }
 
 export function useFileShortcuts(options: UseFileShortcutsOptions): ShortcutPlatform {
@@ -35,6 +36,17 @@ export function useFileShortcuts(options: UseFileShortcutsOptions): ShortcutPlat
     const isCloseTabShortcut = matchesShortcut(event, { key: 'w' }, platform)
     const isNextTabShortcut = matchesShortcut(event, { key: 'tab' }, platform)
     const isPreviousTabShortcut = matchesShortcut(event, { key: 'tab', shiftKey: true }, platform)
+    const isToggleCompareShortcut = matchesShortcut(event, { key: 'd', shiftKey: true }, platform)
+
+    if (isToggleCompareShortcut) {
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) {
+        return
+      }
+      event.preventDefault()
+      options.onCloseMenu()
+      options.onToggleCompare?.()
+      return
+    }
 
     if (isCloseTabShortcut || isNextTabShortcut || isPreviousTabShortcut) {
       if (document.querySelector('[role="dialog"][aria-modal="true"]')) {

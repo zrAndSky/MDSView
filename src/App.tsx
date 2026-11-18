@@ -219,6 +219,19 @@ function AppWorkspace({
       discardConfirm: t.compareDiscardConfirm,
     },
   })
+  const { open: openComparison } = comparison
+  // One button and one shortcut toggle compare mode.
+  const handleOpenCompare = useCallback(() => {
+    closeMenu()
+    if (comparison.isCompareOpen) {
+      comparison.close()
+      return
+    }
+    openComparison(markdownDocument.path
+      ? { path: markdownDocument.path, content: markdownDocument.content, revision: markdownDocument.savedRevision ?? undefined }
+      : null)
+  }, [closeMenu, comparison, markdownDocument.content, markdownDocument.path, markdownDocument.savedRevision, openComparison])
+
   // Closing the window has to account for every tab and for compare panes.
   const { documents: compareDocuments, saveAll: saveCompareAll } = comparison
   const collectPendingSaves = useCallback((): PendingSave[] => {
@@ -277,10 +290,18 @@ function AppWorkspace({
     }
     addPlaylistItems(await pick())
   }, [addPlaylistItems, fileAccess])
+  const [isCompareDropTarget, setIsCompareDropTarget] = useState(false)
+  const addCompareDocuments = comparison.addDocumentPaths
   useCollectionsFileDrop({
-    enabled: true,
+    enabled: !comparison.isCompareOpen,
     onDropFiles: addPlaylistItems,
     onHoverChange: setIsCollectionsDropTarget,
+  })
+  useCollectionsFileDrop({
+    enabled: comparison.isCompareOpen,
+    onDropFiles: (paths) => { void addCompareDocuments(paths) },
+    onHoverChange: setIsCompareDropTarget,
+    panelSelector: '.compare-workspace',
   })
   const handleOpenPlaylistItem = useCallback((path: string) => {
     void handleOpenRecentFile(path)
@@ -490,6 +511,7 @@ function AppWorkspace({
     onCloseTab: () => handleCloseTab(tabs.state.activeId),
     onNextTab: () => cycleTab(1),
     onPreviousTab: () => cycleTab(-1),
+    onToggleCompare: handleOpenCompare,
   })
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const skipNextHistorySnapshotRef = useRef(false)
@@ -849,13 +871,6 @@ function AppWorkspace({
   const previewPanelStyle = { '--preview-zoom': previewZoom } as CSSProperties
   // Plain-text files are shown verbatim instead of being parsed as Markdown.
   const isPlainTextDocument = isPlainTextPath(markdownDocument.path)
-  const { open: openComparison } = comparison
-  const handleOpenCompare = useCallback(() => {
-    closeMenu()
-    openComparison(markdownDocument.path
-      ? { path: markdownDocument.path, content: markdownDocument.content, revision: markdownDocument.savedRevision ?? undefined }
-      : null)
-  }, [closeMenu, markdownDocument.content, markdownDocument.path, markdownDocument.savedRevision, openComparison])
   const lineStartOffsets = useMemo(
     () => getLineStartOffsets(markdownDocument.content),
     [markdownDocument.content],
@@ -957,21 +972,24 @@ function AppWorkspace({
 
       {comparison.isCompareOpen ? (
         <Suspense fallback={<div role="status" style={{ padding: 24, color: 'var(--text-muted)' }}>{t.compareTitle}</div>}>
-        <LazyCompareWorkspace
-          documents={comparison.documents}
-          dirtyCount={comparison.dirtyCount}
-          statusMessage={comparison.statusMessage}
-          theme={effectiveTheme}
-          previewLabels={t.previewLabels}
-          readLocalImageFile={fileAccess.readLocalImageFile}
-          labels={{
-            title: t.compareTitle,
-            add: t.compareAdd,
-            limit: t.compareLimit,
-            saveAll: t.compareSaveAll,
-            exit: t.compareExit,
-            empty: t.compareEmpty,
-            loading: t.previewLoading,
+          <LazyCompareWorkspace
+            documents={comparison.documents}
+            dirtyCount={comparison.dirtyCount}
+            statusMessage={comparison.statusMessage}
+            isDropTarget={isCompareDropTarget}
+            theme={effectiveTheme}
+            previewLabels={t.previewLabels}
+            readLocalImageFile={fileAccess.readLocalImageFile}
+            labels={{
+              title: t.compareTitle,
+              add: t.compareAdd,
+              limit: t.compareLimit,
+              saveAll: t.compareSaveAll,
+              exit: t.compareExit,
+              empty: t.compareEmpty,
+              dropHint: t.compareDropHint,
+              dropActive: t.compareDropActive,
+              loading: t.previewLoading,
             panePreview: t.comparePanePreview,
             paneEdit: t.comparePaneEdit,
             paneSave: t.compareSavePane,

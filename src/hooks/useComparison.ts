@@ -77,6 +77,7 @@ export function useComparison({ fileAccess, messages }: UseComparisonOptions) {
     }
 
     const accepted: OpenedMarkdownFile[] = []
+    let lastFailure = ''
     for (const path of paths.slice(0, room)) {
       if (documentsRef.current.some((document) => document.id === compareDocumentId(path))) {
         continue
@@ -84,11 +85,14 @@ export function useComparison({ fileAccess, messages }: UseComparisonOptions) {
       try {
         accepted.push(await fileAccess.openMarkdownFileAtPath(path))
       } catch {
-        setStatusMessage(messages.loadFailed(path.split(/[\\/]/).filter(Boolean).at(-1) ?? path))
+        lastFailure = messages.loadFailed(path.split(/[\\/]/).filter(Boolean).at(-1) ?? path)
       }
     }
 
     if (accepted.length === 0) {
+      if (lastFailure) {
+        setStatusMessage(lastFailure)
+      }
       return
     }
 
@@ -96,7 +100,8 @@ export function useComparison({ fileAccess, messages }: UseComparisonOptions) {
       (next, file) => addCompareDocument(next, createCompareDocumentFromFile(file)),
       current,
     ))
-    setStatusMessage('')
+    // Keep the failure visible when only some files made it in.
+    setStatusMessage(lastFailure)
   }, [commit, fileAccess, messages])
 
   const addDocuments = useCallback(async () => {
@@ -122,6 +127,11 @@ export function useComparison({ fileAccess, messages }: UseComparisonOptions) {
 
   const addDocumentAtPath = useCallback(async (path: string) => {
     await loadPaths([path])
+  }, [loadPaths])
+
+  /** Used by drag and drop, which hands over a batch of paths at once. */
+  const addDocumentPaths = useCallback(async (paths: string[]) => {
+    await loadPaths(paths)
   }, [loadPaths])
 
   const remove = useCallback((id: string) => {
@@ -200,6 +210,7 @@ export function useComparison({ fileAccess, messages }: UseComparisonOptions) {
     close,
     addDocuments,
     addDocumentAtPath,
+    addDocumentPaths,
     remove,
     setMode,
     updateContent,

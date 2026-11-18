@@ -113,7 +113,7 @@ export function AppToolbar({
           <button type="button" className="action-menu-item" aria-label={t.createNew} onClick={onNew} title={newTitle} role="menuitem"><FilePlus2 aria-hidden="true" /><span>{t.createNew}</span><kbd aria-hidden="true">{formatShortcut({ key: 'n' })}</kbd></button>
           <button type="button" className="action-menu-item" aria-label={t.openMarkdownFile} onClick={onOpen} disabled={!nativeFilesEnabled} title={nativeFileTitle ?? openTitle} role="menuitem"><FolderOpen aria-hidden="true" /><span>{t.openMarkdownFile}</span><kbd aria-hidden="true">{formatShortcut({ key: 'o' })}</kbd></button>
           {onImportDocx ? <button type="button" className="action-menu-item" onClick={onImportDocx} disabled={!nativeFilesEnabled} title={nativeFileTitle} role="menuitem"><FileInput aria-hidden="true" />{t.importDocx}</button> : null}
-          <button type="button" className="action-menu-item" aria-label={t.compareMenuItem} onClick={() => onCompare?.()} disabled={!onCompare || (!nativeFilesEnabled && isWelcomeVisible)} title={nativeFileTitle ?? t.compareMenuItem} role="menuitem"><Columns aria-hidden="true" /><span>{t.compareMenuItem}</span></button>
+          <button type="button" className="action-menu-item" aria-label={t.compareMenuItem} onClick={() => onCompare?.()} disabled={!onCompare || (!nativeFilesEnabled && isWelcomeVisible)} title={nativeFileTitle ?? t.compareMenuItem} role="menuitem"><Columns aria-hidden="true" /><span>{t.compareMenuItem}</span><kbd aria-hidden="true">{formatShortcut({ key: 'd', shiftKey: true })}</kbd></button>
           <button type="button" className="action-menu-item" aria-label={t.save} onClick={onSave} disabled={isWelcomeVisible || !nativeFilesEnabled || isSaving} title={nativeFileTitle ?? saveTitle} role="menuitem"><Save aria-hidden="true" /><span>{t.save}</span><kbd aria-hidden="true">{formatShortcut({ key: 's' })}</kbd></button>
           <button type="button" className="action-menu-item" aria-label={t.saveAs} onClick={onSaveAs} disabled={isWelcomeVisible || !nativeFilesEnabled || isSaving} title={nativeFileTitle ?? saveAsTitle} role="menuitem"><Save aria-hidden="true" /><span>{t.saveAs}</span><kbd aria-hidden="true">{formatShortcut({ key: 's', shiftKey: true })}</kbd></button>
           {!isWelcomeVisible ? <>
@@ -160,10 +160,13 @@ export function AppToolbar({
     </nav>
     {!isWelcomeVisible && !compareMode && onRefresh ? <button type="button" className="history-toggle" onClick={onRefresh} disabled={!documentPath} aria-label={t.refreshFile} title={t.refreshFile}><RefreshCw aria-hidden="true" /><span>{t.refreshFileShort}</span></button> : null}
     {!isWelcomeVisible && !compareMode && onToggleHistory ? <button type="button" className={`history-toggle${isHistoryOpen ? ' active' : ''}`} onClick={onToggleHistory} disabled={!documentPath} aria-pressed={isHistoryOpen} aria-label={t.historyTitle} title={t.historyTitle}><History aria-hidden="true" /><span>{t.historyShort}</span></button> : null}
-    {!isWelcomeVisible && !compareMode ? <div className="view-controls" role="group" aria-label={t.viewMode} data-window-interactive="true">
-      <button type="button" className={viewMode === 'preview' ? 'active' : ''} onClick={() => onViewMode('preview')} aria-pressed={viewMode === 'preview'} aria-label={t.previewLabel} title={t.previewLabel}><Eye aria-hidden="true" /><span>{t.preview}</span></button>
-      <button type="button" className={viewMode === 'edit' ? 'active' : ''} onClick={() => onViewMode('edit')} aria-pressed={viewMode === 'edit'} aria-label={t.editLabel} title={t.editLabel}><PencilLine aria-hidden="true" /><span>{t.edit}</span></button>
-      <button type="button" className={viewMode === 'split' ? 'active' : ''} onClick={() => onViewMode('split')} aria-pressed={viewMode === 'split'} aria-label={t.splitLabel} title={t.splitLabel}><SplitSquareHorizontal aria-hidden="true" /><span>{t.split}</span></button>
+    {!isWelcomeVisible ? <div className="view-controls" role="group" aria-label={t.viewMode} data-window-interactive="true">
+      {!compareMode ? <>
+        <button type="button" className={viewMode === 'preview' ? 'active' : ''} onClick={() => onViewMode('preview')} aria-pressed={viewMode === 'preview'} aria-label={t.previewLabel} title={t.previewLabel}><Eye aria-hidden="true" /><span>{t.preview}</span></button>
+        <button type="button" className={viewMode === 'edit' ? 'active' : ''} onClick={() => onViewMode('edit')} aria-pressed={viewMode === 'edit'} aria-label={t.editLabel} title={t.editLabel}><PencilLine aria-hidden="true" /><span>{t.edit}</span></button>
+        <button type="button" className={viewMode === 'split' ? 'active' : ''} onClick={() => onViewMode('split')} aria-pressed={viewMode === 'split'} aria-label={t.splitLabel} title={t.splitLabel}><SplitSquareHorizontal aria-hidden="true" /><span>{t.split}</span></button>
+      </> : null}
+      <button type="button" className={compareMode ? 'active' : ''} onClick={() => onCompare?.()} disabled={!onCompare} aria-pressed={Boolean(compareMode)} aria-label={t.compareShort} title={`${t.compareShort} (${formatShortcut({ key: 'd', shiftKey: true })})`}><Columns aria-hidden="true" /><span>{t.compareShort}</span></button>
     </div> : null}
     {windowFrame.kind === 'windows-custom' ? <WindowControls
       frame={windowFrame}

@@ -40,6 +40,33 @@ describe('document compare', () => {
     expect(screen.getByRole('button', { name: 'Add document' })).toBeDisabled()
   })
 
+  it('toggles compare mode from the toolbar button', async () => {
+    const user = userEvent.setup()
+    const { container } = renderApp({ fileAccess: createFileAccess({ startupFile: file('/tmp/a.md', '# A') }) })
+
+    await screen.findByRole('heading', { name: 'A' })
+
+    await user.click(screen.getByRole('button', { name: 'Compare' }))
+    expect(await screen.findByRole('region', { name: 'Document compare' }, { timeout: 5000 })).toBeInTheDocument()
+    expect(container.querySelectorAll('.compare-pane')).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: 'Compare' }))
+    await waitFor(() => expect(container.querySelector('.compare-workspace')).toBeNull())
+    expect(await screen.findByRole('heading', { name: 'A' })).toBeInTheDocument()
+  })
+
+  it('toggles compare mode with Ctrl+Shift+D', async () => {
+    const { container } = renderApp({ fileAccess: createFileAccess({ startupFile: file('/tmp/a.md', '# A') }) })
+
+    await screen.findByRole('heading', { name: 'A' })
+
+    fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true })
+    expect(await screen.findByRole('region', { name: 'Document compare' }, { timeout: 5000 })).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'd', ctrlKey: true, shiftKey: true })
+    await waitFor(() => expect(container.querySelector('.compare-workspace')).toBeNull())
+  })
+
   it('edits and saves a pane without leaving compare mode', async () => {
     const user = userEvent.setup()
     const saveMarkdownFile = vi.fn(async (path: string) => ({ status: 'saved' as const, path, revision: 'r2' }))

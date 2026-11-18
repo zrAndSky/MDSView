@@ -15,6 +15,8 @@ export type CompareWorkspaceLabels = {
   saveAll: string
   exit: string
   empty: string
+  dropHint: string
+  dropActive: string
   loading: string
   panePreview: string
   paneEdit: string
@@ -26,6 +28,7 @@ type CompareWorkspaceProps = {
   documents: CompareDocument[]
   dirtyCount: number
   statusMessage: string
+  isDropTarget?: boolean
   theme: EffectiveReadingTheme
   previewLabels: MarkdownPreviewLabels
   readLocalImageFile?: FileAccess['readLocalImageFile']
@@ -43,6 +46,7 @@ export function CompareWorkspace({
   documents,
   dirtyCount,
   statusMessage,
+  isDropTarget = false,
   theme,
   previewLabels,
   readLocalImageFile,
@@ -58,7 +62,10 @@ export function CompareWorkspace({
   const isAtLimit = documents.length >= MAX_COMPARE_DOCUMENTS
 
   return (
-    <section className="compare-workspace" aria-label={labels.title}>
+    <section
+      className={`compare-workspace${isDropTarget ? ' is-drop-target' : ''}`}
+      aria-label={labels.title}
+    >
       <header className="compare-toolbar">
         <span className="compare-brand">
           <Columns aria-hidden="true" />
@@ -98,6 +105,7 @@ export function CompareWorkspace({
             <Plus aria-hidden="true" />
             <span>{labels.add}</span>
           </button>
+          <p className="compare-empty-hint">{labels.dropHint}</p>
         </div>
       ) : (
         <div className="compare-grid" data-count={documents.length} style={{ '--compare-count': documents.length } as CSSProperties}>
@@ -126,6 +134,9 @@ export function CompareWorkspace({
       )}
 
       {statusMessage ? <p className="compare-status" role="status">{statusMessage}</p> : null}
+      {isDropTarget ? (
+        <div className="compare-drop-overlay" aria-hidden="true">{labels.dropActive}</div>
+      ) : null}
     </section>
   )
 }
