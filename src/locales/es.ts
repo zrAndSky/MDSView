@@ -83,6 +83,7 @@ export const spanish: Translation = {
   newTab: 'Nueva pestaña',
   closeTab: (title) => `Cerrar ${title}`,
   closeTabConfirm: (title) => `«${title}» tiene cambios sin guardar. ¿Cerrarlo igualmente?`,
+  closeWindowUnsaved: (count) => `Hay ${count} documento(s) sin guardar. ¿Cerrar la ventana igualmente?`,
   resizeSplit: 'Ajustar el ancho del editor y la vista previa; doble clic para repartirlo por igual',
   swapPanes: 'Intercambiar código y vista previa',
   moreFormatting: 'Más herramientas de formato',

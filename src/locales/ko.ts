@@ -83,6 +83,7 @@ export const korean: Translation = {
   newTab: '새 탭',
   closeTab: (title) => `${title} 닫기`,
   closeTabConfirm: (title) => `'${title}'에 저장하지 않은 변경이 있습니다. 닫을까요?`,
+  closeWindowUnsaved: (count) => `저장하지 않은 문서가 ${count}개 있습니다. 창을 닫을까요?`,
   resizeSplit: '편집기와 미리보기 너비 조절. 두 번 클릭하면 같은 너비로 분할',
   swapPanes: '소스와 미리보기 위치 바꾸기',
   moreFormatting: '추가 서식 도구',

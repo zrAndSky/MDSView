@@ -53,12 +53,13 @@ import { useOutlineNavigation } from './hooks/useOutlineNavigation'
 import { useAppMenu } from './hooks/useAppMenu'
 import { useAppUpdater } from './hooks/useAppUpdater'
 import { useAutoSave, useAutoSavePreference } from './hooks/useAutoSave'
-import { useSaveOnClose } from './hooks/useSaveOnClose'
+import { useSaveOnClose, type PendingSave } from './hooks/useSaveOnClose'
 import { useGitHistory } from './hooks/useGitHistory'
 import { useSidePanels } from './hooks/useSidePanels'
 import { useDocumentController } from './hooks/useDocumentController'
 import { useDocumentTabs } from './hooks/useDocumentTabs'
 import { useComparison } from './hooks/useComparison'
+import { isCompareDocumentDirty } from './domain/comparison'
 
 // Compare mode is an occasional entry point; keep it out of the startup bundle.
 const LazyCompareWorkspace = lazy(async () => {
@@ -165,6 +166,7 @@ function AppWorkspace({
     handleOpenRecentFile,
     handleReloadDiskVersion,
     handleSaveFile,
+    saveAllDirtyTabs,
     handleSaveFileAs,
     ensureDocumentPath,
     isSaving,
@@ -206,13 +208,6 @@ function AppWorkspace({
     saveBlocked: externalFileState !== null,
     onSave: handleSaveFile,
   })
-  useSaveOnClose({
-    enabled: autoSaveEnabled,
-    documentPath: markdownDocument.path,
-    isDirty: markdownDocument.isDirty,
-    saveBlocked: externalFileState !== null,
-    onSave: handleSaveFile,
-  })
   const comparison = useComparison({
     fileAccess,
     messages: {
@@ -223,6 +218,37 @@ function AppWorkspace({
       limitReached: t.compareLimit,
       discardConfirm: t.compareDiscardConfirm,
     },
+  })
+  // Closing the window has to account for every tab and for compare panes.
+  const { documents: compareDocuments, saveAll: saveCompareAll } = comparison
+  const collectPendingSaves = useCallback((): PendingSave[] => {
+    const pending: PendingSave[] = []
+    for (const tab of tabs.stateRef.current.tabs) {
+      if (tab.document.isDirty) {
+        pending.push({ id: tab.id, title: tab.document.title, canSave: Boolean(tab.document.path) })
+      }
+    }
+    for (const document of compareDocuments) {
+      if (isCompareDocumentDirty(document)) {
+        pending.push({ id: `compare:${document.id}`, title: document.title, canSave: true })
+      }
+    }
+    return pending
+  }, [compareDocuments, tabs.stateRef])
+
+  const saveAllPending = useCallback(async () => {
+    const tabsSaved = await saveAllDirtyTabs()
+    if (!tabsSaved) {
+      return false
+    }
+    return saveCompareAll()
+  }, [saveAllDirtyTabs, saveCompareAll])
+
+  useSaveOnClose({
+    autoSaveEnabled,
+    collectPending: collectPendingSaves,
+    saveAll: saveAllPending,
+    discardConfirm: t.closeWindowUnsaved,
   })
   const sidePanels = useSidePanels()
   const playlists = usePlaylists()

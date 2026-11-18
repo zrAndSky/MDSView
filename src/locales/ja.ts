@@ -83,6 +83,7 @@ export const japanese: Translation = {
   newTab: '新しいタブ',
   closeTab: (title) => `${title} を閉じる`,
   closeTabConfirm: (title) => `「${title}」に未保存の変更があります。閉じますか？`,
+  closeWindowUnsaved: (count) => `未保存の文書が ${count} 件あります。ウィンドウを閉じますか？`,
   resizeSplit: '編集とプレビューの幅を調整。ダブルクリックで均等に分割',
   swapPanes: 'ソースとプレビューを入れ替え',
   moreFormatting: 'その他の書式ツール',

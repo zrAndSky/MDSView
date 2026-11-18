@@ -492,6 +492,22 @@ export function useDocumentController({
     return operation
   }, [clearDraft, externalFileMissingMessage, externalFileSaveBlockedMessage, fileAccess, fileOperationFailedMessage, findDocument, patchTab, rememberRecentFile, updateTabDocument])
 
+  /** Saves every dirty tab. Returns false if any tab has no file yet. */
+  const saveAllDirtyTabs = useCallback(async (): Promise<boolean> => {
+    const dirtyTabs = stateRef.current.tabs.filter((tab) => tab.document.isDirty)
+    if (dirtyTabs.some((tab) => !tab.document.path)) {
+      return false
+    }
+
+    for (const tab of dirtyTabs) {
+      const saved = await saveDocument(false, tab.id)
+      if (!saved) {
+        return false
+      }
+    }
+    return true
+  }, [saveDocument, stateRef])
+
   const handleSaveFile = useCallback(async (): Promise<boolean> => {
     onCloseMenu()
     if (externalFileState) {
@@ -624,6 +640,7 @@ export function useDocumentController({
     handleReloadDiskVersion,
     handleSaveFile,
     handleSaveFileAs,
+    saveAllDirtyTabs,
     ensureDocumentPath,
     isSaving,
     isWelcomeVisible,

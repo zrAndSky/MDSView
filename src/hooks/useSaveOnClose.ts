@@ -1,43 +1,42 @@
 import { useEffect, useRef } from 'react'
 
+/** One document with unsaved edits that would be lost on close. */
+export type PendingSave = {
+  id: string
+  title: string
+  /** False when the document has no path yet and would need a "save as" dialog. */
+  canSave: boolean
+}
+
 type UseSaveOnCloseOptions = {
-  enabled: boolean
-  documentPath: string | null
-  isDirty: boolean
-  saveBlocked: boolean
-  onSave: () => Promise<boolean>
+  autoSaveEnabled: boolean
+  /** Every unsaved document, across tabs and the compare workspace. */
+  collectPending: () => PendingSave[]
+  /** Saves all pending documents; resolves false when any save did not happen. */
+  saveAll: () => Promise<boolean>
+  discardConfirm: (count: number) => string
 }
 
 type CloseState = {
-  enabled: boolean
-  hasPath: boolean
-  isDirty: boolean
-  saveBlocked: boolean
-  onSave: () => Promise<boolean>
+  autoSaveEnabled: boolean
+  collectPending: () => PendingSave[]
+  saveAll: () => Promise<boolean>
+  discardConfirm: (count: number) => string
 }
 
+/**
+ * Guards the window close: with auto save on and every document backed by a
+ * real file it saves them all, otherwise it asks before discarding edits.
+ */
 export function useSaveOnClose({
-  enabled,
-  documentPath,
-  isDirty,
-  saveBlocked,
-  onSave,
+  autoSaveEnabled,
+  collectPending,
+  saveAll,
+  discardConfirm,
 }: UseSaveOnCloseOptions) {
-  const stateRef = useRef<CloseState>({
-    enabled,
-    hasPath: Boolean(documentPath),
-    isDirty,
-    saveBlocked,
-    onSave,
-  })
+  const stateRef = useRef<CloseState>({ autoSaveEnabled, collectPending, saveAll, discardConfirm })
   useEffect(() => {
-    stateRef.current = {
-      enabled,
-      hasPath: Boolean(documentPath),
-      isDirty,
-      saveBlocked,
-      onSave,
-    }
+    stateRef.current = { autoSaveEnabled, collectPending, saveAll, discardConfirm }
   })
   const closingRef = useRef(false)
 
@@ -52,22 +51,31 @@ export function useSaveOnClose({
       const appWindow = getCurrentWindow()
       const stop = await appWindow.onCloseRequested(async (event) => {
         const state = stateRef.current
-        if (closingRef.current
-          || !state.enabled
-          || !state.hasPath
-          || !state.isDirty
-          || state.saveBlocked) {
+        if (closingRef.current) {
+          return
+        }
+
+        const pending = state.collectPending()
+        if (pending.length === 0) {
           return
         }
 
         event.preventDefault()
-        const saved = await state.onSave()
-        if (!saved) {
+
+        if (state.autoSaveEnabled && pending.every((item) => item.canSave)) {
+          const saved = await state.saveAll()
+          if (!saved) {
+            return
+          }
+          closingRef.current = true
+          await appWindow.close()
           return
         }
 
-        closingRef.current = true
-        await appWindow.close()
+        if (window.confirm(state.discardConfirm(pending.length))) {
+          closingRef.current = true
+          await appWindow.close()
+        }
       })
       if (disposed) {
         stop()
@@ -85,10 +93,14 @@ export function useSaveOnClose({
   useEffect(() => {
     function flush() {
       const state = stateRef.current
-      if (!state.enabled || !state.hasPath || !state.isDirty || state.saveBlocked) {
+      if (!state.autoSaveEnabled) {
         return
       }
-      void state.onSave()
+      const pending = state.collectPending()
+      if (pending.length === 0 || !pending.every((item) => item.canSave)) {
+        return
+      }
+      void state.saveAll()
     }
 
     function handleVisibilityChange() {
